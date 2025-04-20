@@ -1,0 +1,15 @@
+# Ignorer tous les scripts et sorties de test dans runners sauf __init__.py et README.md (structure + documentation)
+src/extract/runners/*
+!src/extract/runners/__init__.py
+!src/extract/runners/README.md
+
+# Ignore .env file
+.env
+
+#Ignore tmp folder 
+tmp/
+
+#Ignore local test files
+src/extract/extract_crypto.py
+src/extract/test.py
+
