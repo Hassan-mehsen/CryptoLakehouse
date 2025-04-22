@@ -9,7 +9,6 @@ src/extract/runners/*
 #Ignore tmp folder 
 tmp/
 
-#Ignore local test files
-src/extract/extract_crypto.py
-src/extract/test.py
-
+# Ignore pycache folder's
+src/extract/__pycache__/
+src/extract/extractors/__pycache__/
