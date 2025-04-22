@@ -1,0 +1,16 @@
+
+==================================================
+            START ExchangeMapExtractor            
+==================================================
+[2025-04-22 22:19:24] [EXTRACT] [EXCHANGE_MAP] Sending request to https://pro-api.coinmarketcap.com/v1/exchange/map with params: {'start': '1', 'limit': '5000'}
+[2025-04-22 22:19:29] [EXTRACT] [EXCHANGE_MAP] Response received with status 200
+[2025-04-22 22:19:29] [EXTRACT] [EXCHANGE_MAP] Raw data saved to /home/hm/Desktop/Data_engineer/Projects/crypto_etl_project/tmp/debug_exchange_map.json
+[2025-04-22 22:19:29] [EXTRACT] [EXCHANGE_MAP] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/crypto_etl_project/src/api_clients/exchange_map/snapshot_info.jsonl
+[2025-04-22 22:19:29] [EXTRACT] [EXCHANGE_MAP] Writing snapshot entry to /home/hm/Desktop/Data_engineer/Projects/crypto_etl_project/src/api_clients/exchange_map/snapshot_info.jsonl
+[2025-04-22 22:19:29] [EXTRACT] [EXCHANGE_MAP] Snapshot entry written successfully.
+[2025-04-22 22:19:29] [EXTRACT] [EXCHANGE_MAP] Saving DataFrame to /home/hm/Desktop/Data_engineer/Projects/crypto_etl_project/data/bronze/exchange_map-2025-04-22_22-19-29.parquet
+[2025-04-22 22:19:29] [EXTRACT] [EXCHANGE_MAP] Data saved to /home/hm/Desktop/Data_engineer/Projects/crypto_etl_project/data/bronze/exchange_map-2025-04-22_22-19-29.parquet
+
+==================================================
+             END ExchangeMapExtractor             
+==================================================
