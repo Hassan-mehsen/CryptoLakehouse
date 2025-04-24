@@ -17,7 +17,7 @@ class BaseExtractor(ABC):
     - base_url (str): Base URL of the API (default: CoinMarketCap)
     - output_dir (str): Path where output .parquet files will be saved
 
-    Attributes:  
+    Attributes:
     - log_path (Path): Path to the main extract log file
     - snapshot_info_path (Path): Path to the snapshot history file (in JSONL format)
     - snapshot_date (str): Current snapshot date (YYYY-MM-DD)
@@ -36,10 +36,7 @@ class BaseExtractor(ABC):
 
         self.api_key = os.getenv("CMC_API_KEY")
         self.session = requests.Session()
-        self.session.headers.update({
-            "Accepts": "application/json",
-            "X-CMC_PRO_API_KEY": self.api_key
-        })
+        self.session.headers.update({"Accepts": "application/json", "X-CMC_PRO_API_KEY": self.api_key})
 
         # Dynamically resolves the project root path, ensuring portability regardless of where the script is executed from
         self.PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -54,15 +51,27 @@ class BaseExtractor(ABC):
     #                           Methods
     # --------------------------------------------------------------------
 
-    def log(self, message: str="", style :str=None):
+    def log(self, message: str = "", style: str = None) -> None:
         """Logs a message with timestamp and extractor name."""
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         full_message = f"[{timestamp}] [EXTRACT] [{self.name.upper()}] {message}"
         with open(self.log_path, "a") as f:
-            if style :
+            if style:
                 f.write(style)
-            else :
+            else:
                 f.write(full_message + "\n")
+
+    def log_section(self, title: str, width: int = 50) -> None:
+        """
+        Logs a visual block section with a centered title for better readability in logs.
+
+        Param:
+        - title (str): The title text to display
+        - width (int): Width of the log box (default: 50)
+        """
+        self.log(style="\n" + "=" * width + "\n")
+        self.log(style=title.center(width))
+        self.log(style="\n" + "=" * width + "\n")
 
     def get_data(self, params: dict = None) -> dict:
         """
@@ -82,7 +91,6 @@ class BaseExtractor(ABC):
             self.log(f"API request failed: {exception}")
             return {}
 
-
     def read_last_snapshot(self) -> dict:
         """
         Reads and returns the last non-empty line (as a dict) from the snapshot JSONL file.
@@ -96,8 +104,7 @@ class BaseExtractor(ABC):
                 for line in reversed(lines):
                     if line.strip():
                         snapshot = json.loads(line.strip())
-                        self.log(
-                            f"Last snapshot loaded from {self.snapshot_info_path}")
+                        self.log(f"Last snapshot loaded from {self.snapshot_info_path}")
                         return snapshot
 
         except FileNotFoundError:
@@ -106,17 +113,14 @@ class BaseExtractor(ABC):
             self.log(f"Failed to decode snapshot line: {e}")
         return {}
 
-    def write_snapshot_info(self, snapshot_data : dict):
+    def write_snapshot_info(self, snapshot_data: dict) -> None:
         """
         Appends a new snapshot entry to the JSONL file (1 JSON object per line).
 
         Param:
         - snapshot_data (dict): Data to log (e.g., list of IDs fetched, metadata)
         """
-        snapshot_entry = {
-            "snapshot_date": self.snapshot_date,
-            **snapshot_data
-        }
+        snapshot_entry = {"snapshot_date": self.snapshot_date, **snapshot_data}
         try:
             self.log(f"Writing snapshot entry to {self.snapshot_info_path}")
             with open(self.snapshot_info_path, "a", encoding="utf-8") as f:
@@ -127,7 +131,7 @@ class BaseExtractor(ABC):
         except Exception as e:
             self.log(f"Failed to write snapshot info: {e}")
 
-    def save_parquet(self, df, filename: str):
+    def save_parquet(self, df, filename: str) -> None:
         """
         Saves a DataFrame to a timestamped .parquet file.
 
@@ -145,7 +149,6 @@ class BaseExtractor(ABC):
         except Exception as e:
             self.log(f"Failed to save parquet file: {e}")
 
-
     @abstractmethod
     def parse(self, raw_data):
         """Must be implemented by child class: transforms raw JSON into a clean DataFrame."""
@@ -156,30 +159,29 @@ class BaseExtractor(ABC):
         """Must be implemented by child class: controls full extraction logic."""
         pass
 
+    def save_raw_data(self, data: dict, filename: str = "raw_snapshot.json") -> None:
+        """
+        Saves the raw API response to a JSON file (overwrite mode).
 
-    def save_raw_data(self, data: dict, filename: str = "raw_snapshot.json"):
-            """
-            Saves the raw API response to a JSON file (overwrite mode). 
+        Param:
+        - data (dict): Raw JSON data returned from the API
+        - filename (str): Name of the output file inside the tmp/ directory
 
-            Param:
-            - data (dict): Raw JSON data returned from the API
-            - filename (str): Name of the output file inside the tmp/ directory
+        NOTE :
+        This method is intended for local development and debugging only.
+        It allows you to:
+        - Inspect the raw structure of the API response
+        - Replay parsing logic without repeating the API call
+        - Analyze or troubleshoot failed runs offline
 
-            NOTE : 
-            This method is intended for local development and debugging only.
-            It allows you to:
-            - Inspect the raw structure of the API response
-            - Replay parsing logic without repeating the API call
-            - Analyze or troubleshoot failed runs offline
-
-            Should NOT be used in Airflow DAGs:
-            - DAGs should be stateless and reproducible
-            - Temporary files are not guaranteed to persist between DAG retries
-            """
-            tmp_path = self.PROJECT_ROOT / "tmp" / filename
-            try:
-                with open(tmp_path, "w", encoding="utf-8") as f:
-                    json.dump(data, f, indent=2)
-                self.log(f"Raw data saved to {tmp_path}")
-            except Exception as e:
-                self.log(f"Failed to save raw data: {e}")
+        Should NOT be used in Airflow DAGs:
+        - DAGs should be stateless and reproducible
+        - Temporary files are not guaranteed to persist between DAG retries
+        """
+        tmp_path = self.PROJECT_ROOT / "tmp" / filename
+        try:
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+            self.log(f"Raw data saved to {tmp_path}")
+        except Exception as e:
+            self.log(f"Failed to save raw data: {e}")
