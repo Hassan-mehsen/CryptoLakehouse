@@ -83,7 +83,6 @@ class BaseExtractor(ABC):
         """
         url = self.base_url + self.endpoint
         try:
-            print(self.api_key)
             self.log(f"Sending request to {url} with params: {params}")
             response = self.session.get(url, params=params, timeout=10)
             response.raise_for_status()
