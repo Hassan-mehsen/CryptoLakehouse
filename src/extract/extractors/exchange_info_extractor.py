@@ -70,7 +70,7 @@ class ExchangeInfoExtractor(BaseExtractor):
             raw_data.update(self.get_data(params=self.params).get("data", {}))
             self.log(f"Fetching chunk {i+1}/{total_chunks} -> {len(chunk)} IDs")
             self.log("Waiting 2s to respect API rate limit")
-            time.sleep(1)
+            time.sleep(2.5)
 
         return raw_data
 

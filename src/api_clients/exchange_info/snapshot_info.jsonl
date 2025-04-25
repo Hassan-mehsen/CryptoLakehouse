@@ -3,3 +3,4 @@
 {"snapshot_date": "2025-04-24", "total_count": 811, "source_endpoint": "/v1/exchange/info", "exchange_map_snapshot_ref": null}
 {"snapshot_date": "2025-04-24", "total_count": 811, "source_endpoint": "/v1/exchange/info", "exchange_map_snapshot_ref": null}
 {"snapshot_date": "2025-04-24", "total_count": 810, "source_endpoint": "/v1/exchange/info", "exchange_map_snapshot_ref": "2025-04-24"}
+{"snapshot_date": "2025-04-26", "total_count": 808, "source_endpoint": "/v1/exchange/info", "exchange_map_snapshot_ref": "2025-04-26"}

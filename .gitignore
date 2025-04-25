@@ -1,10 +1,10 @@
+# Ignore .env file
+.env
+
 # Ignorer tous les scripts et sorties de test dans runners sauf __init__.py et README.md (structure + documentation)
 src/extract/runners/*
 !src/extract/runners/__init__.py
 !src/extract/runners/README.md
-
-# Ignore .env file
-.env
 
 #Ignore tmp folder 
 tmp/
@@ -12,3 +12,10 @@ tmp/
 # Ignore pycache folder's
 src/extract/__pycache__/
 src/extract/extractors/__pycache__/
+
+# Ignore all parquet files in bronze by default
+data/bronze/*.parquet
+
+# EXCEPT manually selected reference files
+#!data/bronze/exchange_info-latest.parquet
+#!data/bronze/exchange_map-latest.parquet

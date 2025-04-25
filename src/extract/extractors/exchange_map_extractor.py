@@ -99,7 +99,7 @@ class ExchangeMapExtractor(BaseExtractor):
         raw_data = self.get_data(params=parameters)
 
         if not raw_data.get("data"):
-            self.log("Empty data received from API --> Skipping run.")
+            self.log("Empty data received from API --> Skipping run.") # Recall if failure ?
             return
 
         if debug:
