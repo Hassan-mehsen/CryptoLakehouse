@@ -10,7 +10,7 @@ class ExchangeAssetsExtractor(BaseExtractor):
         super().__init__(name="exchange_assets", endpoint="/v1/exchange/assets")
 
         self.MAX_RETRIES = 3
-        self.param = {"id": None}
+        self.params = {"id": None}
         self.snapshot_info = {
             "source_endpoint": "/v1/exchange/assets",
             "exchange_map_snapshot_ref": None,
@@ -78,10 +78,10 @@ class ExchangeAssetsExtractor(BaseExtractor):
 
         for ex_id in target_ids:
             for attempt in range(1, self.MAX_RETRIES + 1):
-                self.param["id"] = ex_id
+                self.params["id"] = ex_id
                 self.log(f"Fetching exchange {ex_id} (attempt {attempt}/{self.MAX_RETRIES})")
 
-                response = self.get_data(params=self.param)
+                response = self.get_data(params=self.params)
                 status = response.get("status", {})
 
                 # Business case: valid but empty response -> do not retry
@@ -191,6 +191,5 @@ class ExchangeAssetsExtractor(BaseExtractor):
             self.log(f"DataFrame saved with {len(df)} rows.")
         else:
             self.log("No valid asset records found.")
-
 
         self.log_section("END ExchangeAssetsExtractor")

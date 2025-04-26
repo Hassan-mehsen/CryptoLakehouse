@@ -1,6 +1,5 @@
 from extract.base_extractor import BaseExtractor
 from pandas import DataFrame
-import sys
 import json
 import math
 import time
