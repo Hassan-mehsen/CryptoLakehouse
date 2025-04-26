@@ -3605,3 +3605,70 @@
 ==================================================
            END ExchangeAssetsExtractor            
 ==================================================
+
+
+
+"Incremental Crypto Map Extraction: Optimized API usage with dynamic snapshot validation and conditional persistence."
+"Logs show API retry logic, successful snapshot updates, conditional DataFrame persistence, "
+"and smart skip of redundant saves to optimize storage and API credits."
+==================================================
+             START CryptoMapExtractor             
+==================================================
+[2025-04-26 19:58:13] [EXTRACT] [CRYPTO_MAP] Attempt 1/3 failed to fetch valid data. Retrying after 2 seconds...
+[2025-04-26 19:58:15] [EXTRACT] [CRYPTO_MAP] Attempt 2/3 failed to fetch valid data. Retrying after 4 seconds...
+[2025-04-26 19:58:19] [EXTRACT] [CRYPTO_MAP] Raw data saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/tmp/debug_crypto_map.json
+[2025-04-26 19:58:19] [EXTRACT] [CRYPTO_MAP] Snapshot file not found at /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/src/api_clients/crypto_map/snapshot_info.jsonl
+[2025-04-26 19:58:19] [EXTRACT] [CRYPTO_MAP] Writing snapshot entry to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/src/api_clients/crypto_map/snapshot_info.jsonl
+[2025-04-26 19:58:19] [EXTRACT] [CRYPTO_MAP] Snapshot entry written successfully.
+
+==================================================
+              END CryptoMapExtractor              
+==================================================
+
+==================================================
+             START CryptoMapExtractor             
+==================================================
+[2025-04-26 19:58:19] [EXTRACT] [CRYPTO_MAP] Attempt 1/3 failed to fetch valid data. Retrying after 2 seconds...
+[2025-04-26 19:58:21] [EXTRACT] [CRYPTO_MAP] Attempt 2/3 failed to fetch valid data. Retrying after 4 seconds...
+[2025-04-26 19:58:25] [EXTRACT] [CRYPTO_MAP] Attempt 3/3 failed to fetch valid data. Retrying after 8 seconds...
+[2025-04-26 19:58:33] [EXTRACT] [CRYPTO_MAP] All retries failed. Skipping run.
+==================================================
+              END CryptoMapExtractor              
+==================================================
+
+==================================================
+             START CryptoMapExtractor             
+==================================================
+[2025-04-26 20:05:05] [EXTRACT] [CRYPTO_MAP] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/map with params: {'listing_status': 'active', 'start': '1', 'limit': '5000', 'sort': 'id', 'aux': 'platform,first_historical_data,last_historical_data,is_active'}
+[2025-04-26 20:05:06] [EXTRACT] [CRYPTO_MAP] Response received with status 200
+[2025-04-26 20:05:07] [EXTRACT] [CRYPTO_MAP] Raw data saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/tmp/debug_crypto_map.json
+[2025-04-26 20:05:07] [EXTRACT] [CRYPTO_MAP] Writing snapshot entry to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/src/api_clients/crypto_map/snapshot_info.jsonl
+[2025-04-26 20:05:07] [EXTRACT] [CRYPTO_MAP] Snapshot entry written successfully.
+
+==================================================
+             START CryptoMapExtractor             
+==================================================
+[2025-04-26 20:27:44] [EXTRACT] [CRYPTO_MAP] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/map with params: {'listing_status': 'active', 'start': '1', 'limit': '5000', 'sort': 'id', 'aux': 'platform,first_historical_data,last_historical_data,is_active'}
+[2025-04-26 20:27:44] [EXTRACT] [CRYPTO_MAP] Response received with status 200
+[2025-04-26 20:27:44] [EXTRACT] [CRYPTO_MAP] Raw data saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/tmp/debug_crypto_map.json
+[2025-04-26 20:27:44] [EXTRACT] [CRYPTO_MAP] Writing snapshot entry to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/src/api_clients/crypto_map/snapshot_info.jsonl
+[2025-04-26 20:27:44] [EXTRACT] [CRYPTO_MAP] Snapshot entry written successfully.
+[2025-04-26 20:27:44] [EXTRACT] [CRYPTO_MAP] Saving DataFrame to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/bronze/crypto_map-2025-04-26_20-27-44.parquet
+[2025-04-26 20:27:44] [EXTRACT] [CRYPTO_MAP] Data saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/bronze/crypto_map-2025-04-26_20-27-44.parquet
+
+==================================================
+              END CryptoMapExtractor              
+==================================================
+
+==================================================
+             START CryptoMapExtractor             
+==================================================
+[2025-04-26 20:28:28] [EXTRACT] [CRYPTO_MAP] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/map with params: {'listing_status': 'active', 'start': '1', 'limit': '5000', 'sort': 'id', 'aux': 'platform,first_historical_data,last_historical_data,is_active'}
+[2025-04-26 20:28:29] [EXTRACT] [CRYPTO_MAP] Response received with status 200
+[2025-04-26 20:28:29] [EXTRACT] [CRYPTO_MAP] Raw data saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/tmp/debug_crypto_map.json
+[2025-04-26 20:28:29] [EXTRACT] [CRYPTO_MAP] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/src/api_clients/crypto_map/snapshot_info.jsonl
+[2025-04-26 20:28:29] [EXTRACT] [CRYPTO_MAP] No changes detected in Crypto map --> Skipping save.
+
+==================================================
+              END CryptoMapExtractor              
+==================================================
