@@ -3672,3 +3672,29 @@
 ==================================================
               END CryptoMapExtractor              
 ==================================================
+
+
+"Initial test of CryptoInfoExtractor"
+"No previous snapshot found -> initialization mode triggered"
+"75 active cryptocurrencies detected, extracted, and recorded in the new snapshot"
+"Pipeline fully functional and successfully validated"
+==================================================
+            START CryptoInfoExtractor             
+==================================================
+[2025-04-27 14:29:37] [EXTRACT] [CRYPTO_INFO] Snapshot file not found at /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/src/api_clients/crypto_info/snapshot_info.jsonl
+[2025-04-27 14:29:37] [EXTRACT] [CRYPTO_INFO] Sending request to https://pro-api.coinmarketcap.com/v2/cryptocurrency/info with params: {'id': '512,1,2,3,4,5,6,258,8,260,10,263,268,13,16,18,276,22,278,25,26,541,290,35,291,293,41,42,298,45,52,56,316,61,66,67,72,328,74,77,78,333,83,87,90,93,99,360,362,109,367,372,118,377,122,128,131,132,389,148,405,154,162,170,5555,448,460,463,213,470,215,234,501,502,506', 'skip_invalid': 'true', 'aux': 'urls,logo,description,tags,platform,date_added,notice,status'}
+[2025-04-27 14:29:37] [EXTRACT] [CRYPTO_INFO] Response received with status 200
+[2025-04-27 14:29:37] [EXTRACT] [CRYPTO_INFO] Fetching chunk 1/1 -> 75 IDs
+[2025-04-27 14:29:37] [EXTRACT] [CRYPTO_INFO] Waiting 2s to respect API rate limit
+[2025-04-27 14:29:37] [EXTRACT] [CRYPTO_INFO] Parsed 75 cryptocurrencies for chunk 1.
+[2025-04-27 14:29:39] [EXTRACT] [CRYPTO_INFO] Raw data saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/tmp/debug_crypto_info.json
+[2025-04-27 14:29:39] [EXTRACT] [CRYPTO_INFO] Debug mode: Raw parsed records saved.
+[2025-04-27 14:29:39] [EXTRACT] [CRYPTO_INFO] Writing snapshot entry to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/src/api_clients/crypto_info/snapshot_info.jsonl
+[2025-04-27 14:29:39] [EXTRACT] [CRYPTO_INFO] Snapshot entry written successfully.
+[2025-04-27 14:29:39] [EXTRACT] [CRYPTO_INFO] Saving DataFrame to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/bronze/crypto_info-2025-04-27_14-29-39.parquet
+[2025-04-27 14:29:40] [EXTRACT] [CRYPTO_INFO] Data saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/bronze/crypto_info-2025-04-27_14-29-39.parquet
+[2025-04-27 14:29:40] [EXTRACT] [CRYPTO_INFO] DataFrame saved with 75 rows.
+
+==================================================
+             END CryptoInfoExtractor              
+==================================================
