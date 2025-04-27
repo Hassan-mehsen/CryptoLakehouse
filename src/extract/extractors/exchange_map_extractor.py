@@ -1,5 +1,6 @@
 from extract.base_extractor import BaseExtractor
 from pandas import DataFrame
+from typing import Optional
 import json
 import time
 
@@ -29,7 +30,7 @@ class ExchangeMapExtractor(BaseExtractor):
         self.MAX_RETRIES = 3  # retry in case of API failures
 
     # Override of BaseExtractor.parse
-    def parse(self, raw_data) -> DataFrame:
+    def parse(self, raw_data: dict) -> Optional[DataFrame]:
         """
         Parses the raw API response from /v1/exchange/map into a cleaned DataFrame.
 

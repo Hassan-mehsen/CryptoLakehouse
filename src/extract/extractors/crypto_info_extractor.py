@@ -1,5 +1,5 @@
 from extract.base_extractor import BaseExtractor
-from typing import Optional, List
+from typing import Optional, List, Generator
 from pandas import DataFrame
 import json
 import time
@@ -34,7 +34,7 @@ class CryptoInfoExtractor(BaseExtractor):
 
         self.available_crypto = []
 
-    def find_crypto_ids_to_fetch(self) -> list:
+    def find_crypto_ids_to_fetch(self) -> List[int]:
         """
         Determines which crypto IDs to fetch based on the availability of crypto_info snapshot.
         - If crypto_info snapshot does not exist, returns all active crypto_ids (full initialization).
@@ -76,7 +76,7 @@ class CryptoInfoExtractor(BaseExtractor):
 
         return list(ids_to_fetch)
 
-    def fetch_crypto_info(self, ids: list):
+    def fetch_crypto_info(self, ids: List[int]) -> Generator[dict, None, None]:
         """
         Fetches cryptocurrency info from the API in chunks of 100 IDs to optimize API usage.
 
@@ -174,7 +174,7 @@ class CryptoInfoExtractor(BaseExtractor):
         return result
 
     # Override of BaseExtractor.run
-    def run(self, debug: bool = False): 
+    def run(self, debug: bool = False) -> None:
         """
         Executes the full extraction pipeline:
         - Fetches cryptocurrency info data.

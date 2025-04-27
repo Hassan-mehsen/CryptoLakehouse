@@ -1,4 +1,5 @@
 from extract.base_extractor import BaseExtractor
+from typing import List, Optional, Tuple, Generator
 from pandas import DataFrame
 import json
 import math
@@ -26,7 +27,7 @@ class ExchangeInfoExtractor(BaseExtractor):
             "exchange_map_snapshot_ref": None,
         }
 
-    def get_exchange_ids_from_snapshot(self) -> list:
+    def get_exchange_ids_from_snapshot(self) -> List[int]:
         """
         Reads exchange_ids from the latest snapshot of ExchangeMapExtractor.
         Helps determine which exchanges to query for detailed info.
@@ -48,7 +49,7 @@ class ExchangeInfoExtractor(BaseExtractor):
             self.log(f"Could not load exchange_map snapshot: {e}")
             return []
 
-    def fetch_exchanges_info(self, ids: list) -> dict:
+    def fetch_exchanges_info(self, ids: List[int]) -> dict:
         """
         Fetch detailed exchange info by querying the API in chunks of 100 IDs at a time.
         This chunking is required due to a constraint imposed by the API.
@@ -74,7 +75,7 @@ class ExchangeInfoExtractor(BaseExtractor):
         return raw_data
 
     # Override of BaseExtractor.parse
-    def parse(self, raw_data) -> tuple[DataFrame, int]:
+    def parse(self, raw_data: dict) -> Optional[Tuple[DataFrame, int]]:
         """
         Parses valid entries and returns both the DataFrame and count of valid items.
         Ignores malformed entries and logs them.
@@ -122,7 +123,7 @@ class ExchangeInfoExtractor(BaseExtractor):
 
         return DataFrame(cleaned_exchange_info_data), len(cleaned_exchange_info_data)
 
-    def fetch_and_parse_with_recovery(self, ids: list) -> tuple[DataFrame, int]:
+    def fetch_and_parse_with_recovery(self, ids: List[int]) -> Tuple[DataFrame, int]:
         """
         Fetches data in chunks, parses valid entries, and if incomplete,
         triggers a refresh of exchange_map and retries the fetch+parse logic.

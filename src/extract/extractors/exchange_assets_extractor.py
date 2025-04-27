@@ -1,8 +1,9 @@
 from extract.base_extractor import BaseExtractor
+from typing import List, Generator, Tuple
+from datetime import date, timedelta
 from pandas import DataFrame
 import json
 import time
-from datetime import date, timedelta
 
 
 class ExchangeAssetsExtractor(BaseExtractor):
@@ -19,7 +20,7 @@ class ExchangeAssetsExtractor(BaseExtractor):
             "actif_exchanges": None,
         }
 
-    def get_exchange_ids_from_snapshot(self) -> list:
+    def get_exchange_ids_from_snapshot(self) -> List[int]:
         """
         Reads exchange_ids from the latest snapshot of ExchangeMapExtractor.
         Helps determine which exchanges to query for detailed info.
@@ -41,7 +42,7 @@ class ExchangeAssetsExtractor(BaseExtractor):
             self.log(f"Could not load exchange_map snapshot: {e}")
             return []
 
-    def fetch_assets_per_exchange_with_recovery(self, ids: list):
+    def fetch_assets_per_exchange_with_recovery(self, ids: List[int]) -> Generator[Tuple[int, dict], None, None]:
         """
         Generator that yields valid asset data per exchange_id by querying the /v1/exchange/assets endpoint.
 
@@ -126,7 +127,7 @@ class ExchangeAssetsExtractor(BaseExtractor):
             self.log(f"{len(failed_ids)} exchanges failed permanently: {failed_ids[:5]}...")
 
     # Override of BaseExtractor.parse
-    def parse(self, exchange_id, raw_data):
+    def parse(self, exchange_id: int, raw_data: dict) -> List[dict]:
         """
         Parse a single API response into a list of flat asset records.
 
@@ -173,7 +174,7 @@ class ExchangeAssetsExtractor(BaseExtractor):
         return result
 
     # Override of BaseExtractor.run
-    def run(self, debug=False):
+    def run(self, debug: bool = False):
         self.log_section("START ExchangeAssetsExtractor")
 
         ids = self.get_exchange_ids_from_snapshot()

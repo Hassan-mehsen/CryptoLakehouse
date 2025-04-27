@@ -1,5 +1,6 @@
 from extract.base_extractor import BaseExtractor
 from pandas import DataFrame
+from typing import Optional
 import json
 import time
 
@@ -36,7 +37,7 @@ class CryptoMapExtractor(BaseExtractor):
         self.is_updated = False
 
     # Override of BaseExtractor.parse
-    def parse(self, raw_data) -> DataFrame:
+    def parse(self, raw_data: dict) -> Optional[DataFrame]:
         """
         Parses the raw API response from /v1/cryptocurrency/map into a cleaned DataFrame.
 
@@ -84,7 +85,7 @@ class CryptoMapExtractor(BaseExtractor):
 
         for x in cryptos_list:
             if isinstance(x, dict):
-                # Protect the pipeline, if platform is null 
+                # Protect the pipeline, if platform is null
                 platform_data = x.get("platform") or {}
                 cleaned_crypto_map_data.append(
                     {
