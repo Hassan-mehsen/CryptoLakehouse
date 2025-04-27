@@ -89,23 +89,31 @@ class ExchangeInfoExtractor(BaseExtractor):
 
         for k, v in raw_data.items():
             if isinstance(v, dict):
-                cleaned_exchange_info_data.append(
-                    {
-                        "id": v.get("id"),
-                        "name": v.get("name"),
-                        "slug": v.get("slug"),
-                        "description": v.get("description"),
-                        "date_launched": v.get("date_launched"),
-                        "notice": v.get("notice"),
-                        "logo": v.get("logo"),
-                        "weekly_visits": v.get("weekly_visits"),
-                        "spot_volume_usd": v.get("spot_volume_usd"),
-                        "maker_fee": v.get("maker_fee"),
-                        "taker_fee": v.get("taker_fee"),
-                        "urls": v.get("urls", {}),
-                        "fiats": ", ".join(v.get("fiats", [])),
-                    }
-                )
+                try:
+                    # Prevent pipeline crashes when nested fields are absent
+                    urls = v.get("urls") or {}
+                    fiats = v.get("fiats") or []
+
+                    cleaned_exchange_info_data.append(
+                        {
+                            "id": v.get("id"),
+                            "name": v.get("name"),
+                            "slug": v.get("slug"),
+                            "description": v.get("description"),
+                            "date_launched": v.get("date_launched"),
+                            "notice": v.get("notice"),
+                            "logo": v.get("logo"),
+                            "weekly_visits": v.get("weekly_visits"),
+                            "spot_volume_usd": v.get("spot_volume_usd"),
+                            "maker_fee": v.get("maker_fee"),
+                            "taker_fee": v.get("taker_fee"),
+                            "urls": urls,
+                            "fiats": ", ".join(fiats),
+                        }
+                    )
+                except Exception as e:
+                    self.log(f"Error parsing exchange info id {v.get('id')}: {str(e)}")
+                    continue
             else:
                 invalid_data.append((k, v))
 

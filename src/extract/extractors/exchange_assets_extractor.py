@@ -146,19 +146,22 @@ class ExchangeAssetsExtractor(BaseExtractor):
         # Loop over each asset in the response data
         for item in raw_data["data"]:
             try:
+                # Prevent pipeline crashes when nested fields are absent
+                platform = item.get("platform") or {}
+                currency = item.get("currency") or {}
+
                 record = {
                     "exchange_id": exchange_id,
                     "wallet_address": item.get("wallet_address"),
                     "balance": item.get("balance"),
-                    "platform_crypto_id": item.get("platform", {}).get("crypto_id"),
-                    "platform_symbol": item.get("platform", {}).get("symbol"),
-                    "platform_name": item.get("platform", {}).get("name"),
-                    "currency_crypto_id": item.get("currency", {}).get("crypto_id"),
-                    "currency_symbol": item.get("currency", {}).get("symbol"),
-                    "currency_name": item.get("currency", {}).get("name"),
-                    "currency_price_usd": item.get("currency", {}).get("price_usd"),
+                    "platform_crypto_id": platform.get("crypto_id"),
+                    "platform_symbol": platform.get("symbol"),
+                    "platform_name": platform.get("name"),
+                    "currency_crypto_id": currency.get("crypto_id"),
+                    "currency_symbol": currency.get("symbol"),
+                    "currency_name": currency.get("name"),
+                    "currency_price_usd": currency.get("price_usd"),
                 }
-
                 result.append(record)
 
             except Exception as e:

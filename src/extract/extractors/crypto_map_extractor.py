@@ -84,6 +84,7 @@ class CryptoMapExtractor(BaseExtractor):
 
         for x in cryptos_list:
             if isinstance(x, dict):
+                # Protect the pipeline, if platform is null 
                 platform_data = x.get("platform") or {}
                 cleaned_crypto_map_data.append(
                     {
