@@ -1,5 +1,7 @@
 "Logs of ExchangeMapExtractor"
-"Generated on 2025-04-22 22:19:24"
+"Record a full extraction event of exchange metadata from CoinMarketCap."
+"Keep a permanent trace of API behavior (timing, responses, snapshot actions)."
+"Ensure auditability of changes between snapshots and historical recovery if needed."
 ==================================================
             START ExchangeMapExtractor            
 ==================================================
@@ -17,25 +19,10 @@
 ==================================================
 
 
-"Logs of ExchangeMapExtractor followed by ExchangeInfoExtractor"
-"Call of ExchangeMapExtractor first then ExchangeInfoExtractor"
-==================================================
-            START ExchangeMapExtractor            
-==================================================
-[2025-04-24 01:05:39] [EXTRACT] [EXCHANGE_MAP] Sending request to https://pro-api.coinmarketcap.com/v1/exchange/map with params: {'start': '1', 'limit': '5000'}
-[2025-04-24 01:05:40] [EXTRACT] [EXCHANGE_MAP] Response received with status 200
-[2025-04-24 01:05:40] [EXTRACT] [EXCHANGE_MAP] Raw data saved to /home/hm/Desktop/Data_engineer/Projects/crypto_etl_project/tmp/debug_exchange_map.json
-[2025-04-24 01:05:40] [EXTRACT] [EXCHANGE_MAP] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/crypto_etl_project/src/api_clients/exchange_map/snapshot_info.jsonl
-[2025-04-24 01:05:40] [EXTRACT] [EXCHANGE_MAP] Writing snapshot entry to /home/hm/Desktop/Data_engineer/Projects/crypto_etl_project/src/api_clients/exchange_map/snapshot_info.jsonl
-[2025-04-24 01:05:40] [EXTRACT] [EXCHANGE_MAP] Snapshot entry written successfully.
-[2025-04-24 01:05:40] [EXTRACT] [EXCHANGE_MAP] Saving DataFrame to /home/hm/Desktop/Data_engineer/Projects/crypto_etl_project/data/bronze/exchange_map-2025-04-24_01-05-40.parquet
-[2025-04-24 01:05:40] [EXTRACT] [EXCHANGE_MAP] Data saved to /home/hm/Desktop/Data_engineer/Projects/crypto_etl_project/data/bronze/exchange_map-2025-04-24_01-05-40.parquet
-
-==================================================
-             END ExchangeMapExtractor             
-==================================================
-
-
+"Logs of ExchangeInfoExtractor :"
+"Trace the full extraction of detailed metadata for cryptocurrency exchanges (info, logo, description...)."
+"Ensure proper snapshot refresh and DataFrame saving after parsing 800+ exchanges."
+"Monitor chunked API requests, respecting rate limits, and validate the fallback recovery if needed."
 ==================================================
            START ExchangeInfoExtractor            
 ==================================================
@@ -197,7 +184,8 @@
 ==================================================
 
 
-"Logs of ExchangeAssetsExtractor demonstrating its active/passive exchanges tracking, retry mechanism on API failures, and monthly full rescan scheduling."
+"Logs of ExchangeAssetsExtractor demonstrating its active/passive exchanges tracking,"
+" retry mechanism on API failures, and monthly full rescan scheduling."
 ==================================================
           START ExchangeAssetsExtractor           
 ==================================================
@@ -3697,4 +3685,150 @@
 
 ==================================================
              END CryptoInfoExtractor              
+==================================================
+
+"CryptoListingsExtractor successfully completed a full-scale dynamic extraction of 5000 cryptocurrencies."
+"The pipeline maintained API compliance via chunked calls and enforced wait times,"
+"normalized critical numeric fields for Parquet safety, captured a UTC snapshot timestamp for traceability,"
+"and saved both raw and cleaned outputs."
+"The ETL process demonstrated perfect stability, API efficiency, and readiness for production workloads."
+
+==================================================
+          START CryptoListingsExtractor           
+==================================================
+[2025-04-29 00:15:01] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 1, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:02] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:02] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 1/25 fetched successfully (start=1).
+[2025-04-29 00:15:02] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 1 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:02] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:04] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 201, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:04] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:04] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 2/25 fetched successfully (start=201).
+[2025-04-29 00:15:04] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 2 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:04] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:06] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 401, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:07] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:07] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 3/25 fetched successfully (start=401).
+[2025-04-29 00:15:07] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 3 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:07] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:09] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 601, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:09] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:09] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 4/25 fetched successfully (start=601).
+[2025-04-29 00:15:09] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 4 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:09] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:11] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 801, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:12] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:12] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 5/25 fetched successfully (start=801).
+[2025-04-29 00:15:12] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 5 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:12] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:14] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 1001, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:14] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:14] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 6/25 fetched successfully (start=1001).
+[2025-04-29 00:15:14] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 6 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:14] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:16] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 1201, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:17] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:17] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 7/25 fetched successfully (start=1201).
+[2025-04-29 00:15:17] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 7 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:17] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:19] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 1401, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:19] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:19] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 8/25 fetched successfully (start=1401).
+[2025-04-29 00:15:19] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 8 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:19] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:21] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 1601, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:21] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:21] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 9/25 fetched successfully (start=1601).
+[2025-04-29 00:15:21] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 9 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:21] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:23] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 1801, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:26] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:26] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 10/25 fetched successfully (start=1801).
+[2025-04-29 00:15:26] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 10 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:26] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:28] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 2001, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:28] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:28] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 11/25 fetched successfully (start=2001).
+[2025-04-29 00:15:28] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 11 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:28] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:30] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 2201, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:31] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:31] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 12/25 fetched successfully (start=2201).
+[2025-04-29 00:15:31] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 12 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:31] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:33] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 2401, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:33] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:33] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 13/25 fetched successfully (start=2401).
+[2025-04-29 00:15:33] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 13 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:33] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:35] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 2601, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:35] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:35] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 14/25 fetched successfully (start=2601).
+[2025-04-29 00:15:35] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 14 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:35] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:37] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 2801, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:38] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:38] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 15/25 fetched successfully (start=2801).
+[2025-04-29 00:15:38] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 15 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:38] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:40] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 3001, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:40] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:40] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 16/25 fetched successfully (start=3001).
+[2025-04-29 00:15:40] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 16 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:40] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:42] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 3201, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:42] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:42] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 17/25 fetched successfully (start=3201).
+[2025-04-29 00:15:42] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 17 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:42] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:44] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 3401, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:45] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:45] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 18/25 fetched successfully (start=3401).
+[2025-04-29 00:15:45] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 18 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:45] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:47] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 3601, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:47] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:47] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 19/25 fetched successfully (start=3601).
+[2025-04-29 00:15:47] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 19 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:47] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:49] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 3801, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:50] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:50] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 20/25 fetched successfully (start=3801).
+[2025-04-29 00:15:50] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 20 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:50] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:52] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 4001, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:52] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:52] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 21/25 fetched successfully (start=4001).
+[2025-04-29 00:15:52] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 21 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:52] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:54] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 4201, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:55] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:55] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 22/25 fetched successfully (start=4201).
+[2025-04-29 00:15:55] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 22 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:55] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:57] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 4401, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:57] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:57] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 23/25 fetched successfully (start=4401).
+[2025-04-29 00:15:57] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 23 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:57] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:15:59] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 4601, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:15:59] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:15:59] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 24/25 fetched successfully (start=4601).
+[2025-04-29 00:15:59] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 24 parsed with 200 cryptocurrencies.
+[2025-04-29 00:15:59] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:16:01] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest with params: {'start': 4801, 'limit': 200, 'aux': 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,market_cap_by_total_supply,volume_24h_reported,volume_7d,volume_7d_reported,volume_30d,volume_30d_reported,is_market_cap_included_in_calc'}
+[2025-04-29 00:16:02] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Response received with status 200
+[2025-04-29 00:16:02] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 25/25 fetched successfully (start=4801).
+[2025-04-29 00:16:02] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Chunk 25 parsed with 200 cryptocurrencies.
+[2025-04-29 00:16:02] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Waiting 2s to respect API rate limit
+[2025-04-29 00:16:04] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Numeric columns normalized to float64 for Parquet compatibility.
+[2025-04-29 00:16:04] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Snapshot timestamp: 2025-04-28 22:16:04.339758+00:00
+[2025-04-29 00:16:04] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Raw data saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/tmp/debug_crypto_listings.json
+[2025-04-29 00:16:04] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Debug mode: Raw parsed records saved.
+[2025-04-29 00:16:04] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Saving DataFrame to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/bronze/crypto_listings-2025-04-29_00-16-04.parquet
+[2025-04-29 00:16:04] [EXTRACT] [CRYPTO_LISTINGS_LATEST] Data saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/bronze/crypto_listings-2025-04-29_00-16-04.parquet
+[2025-04-29 00:16:04] [EXTRACT] [CRYPTO_LISTINGS_LATEST] DataFrame saved with 5000 rows.
+
+==================================================
+           END CryptoListingsExtractor            
 ==================================================
