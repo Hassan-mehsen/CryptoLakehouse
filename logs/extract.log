@@ -3689,10 +3689,8 @@
 
 "CryptoListingsExtractor successfully completed a full-scale dynamic extraction of 5000 cryptocurrencies."
 "The pipeline maintained API compliance via chunked calls and enforced wait times,"
-"normalized critical numeric fields for Parquet safety, captured a UTC snapshot timestamp for traceability,"
-"and saved both raw and cleaned outputs."
+"normalized critical numeric fields for Parquet safety, captured a UTC snapshot timestamp for traceability, and saved cleaned outputs."
 "The ETL process demonstrated perfect stability, API efficiency, and readiness for production workloads."
-
 ==================================================
           START CryptoListingsExtractor           
 ==================================================
@@ -3831,4 +3829,30 @@
 
 ==================================================
            END CryptoListingsExtractor            
+==================================================
+
+
+"CryptoCategoriesExtractor completed successfully with 277 categories fetched in a single call."
+"Data was parsed, normalized for Parquet, timestamped (UTC), and saved cleanly."
+"The pipeline ran without errors, with retry logic and full traceability — ready for production use."
+==================================================
+         START CryptoCategoriesExtractor          
+==================================================
+[2025-04-30 20:42:29] [EXTRACT] [CRYPTO_CATEGORIES] Sending request to https://pro-api.coinmarketcap.com/v1/cryptocurrency/categories with params: {'start': '1', 'limit': '5000'}
+[2025-04-30 20:42:31] [EXTRACT] [CRYPTO_CATEGORIES] Response received with status 200
+[2025-04-30 20:42:31] [EXTRACT] [CRYPTO_CATEGORIES] Successfully fetched 277 categories on attempt 1.
+[2025-04-30 20:42:31] [EXTRACT] [CRYPTO_CATEGORIES] Parsed 277 categories.
+[2025-04-30 20:42:31] [EXTRACT] [CRYPTO_CATEGORIES] Raw data saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/tmp/debug_crypto_categories.json
+[2025-04-30 20:42:31] [EXTRACT] [CRYPTO_CATEGORIES] Debug mode: Raw parsed records saved.
+[2025-04-30 20:42:31] [EXTRACT] [CRYPTO_CATEGORIES] Numeric columns normalized to float64 for Parquet compatibility.
+[2025-04-30 20:42:31] [EXTRACT] [CRYPTO_CATEGORIES] Snapshot timestamp: 2025-04-30 18:42:31.306704+00:00
+[2025-04-30 20:42:31] [EXTRACT] [CRYPTO_CATEGORIES] Writing snapshot entry to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/src/api_clients/crypto_categories/snapshot_info.jsonl
+[2025-04-30 20:42:31] [EXTRACT] [CRYPTO_CATEGORIES] Snapshot entry written successfully.
+[2025-04-30 20:42:31] [EXTRACT] [CRYPTO_CATEGORIES] Saving DataFrame to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/bronze/crypto_categories-2025-04-30_20-42-31.parquet
+[2025-04-30 20:42:31] [EXTRACT] [CRYPTO_CATEGORIES] Data saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/bronze/crypto_categories-2025-04-30_20-42-31.parquet
+[2025-04-30 20:42:31] [EXTRACT] [CRYPTO_CATEGORIES] DataFrame saved with 277 rows.
+[2025-04-30 20:42:31] [EXTRACT] [CRYPTO_CATEGORIES] Extraction complete.
+
+==================================================
+          END CryptoCategoriesExtractor           
 ==================================================
