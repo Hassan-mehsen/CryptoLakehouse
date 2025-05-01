@@ -1,7 +1,6 @@
 from extract.base_extractor import BaseExtractor
 from pandas import DataFrame
 from typing import Optional
-import json
 import time
 
 
@@ -18,7 +17,7 @@ class ExchangeMapExtractor(BaseExtractor):
     """
 
     def __init__(self):
-        super().__init__(name="exchange_map", endpoint="/v1/exchange/map")
+        super().__init__(name="exchange_map", endpoint="/v1/exchange/map", output_dir="exchange_map_data")
         self.exchanges_id = []
         self.is_updated = False
         self.snapshot_info = {
@@ -73,19 +72,23 @@ class ExchangeMapExtractor(BaseExtractor):
 
         self.snapshot_info["exchange_ids"] = self.exchanges_id
         self.snapshot_info["total_count"] = len(self.exchanges_id)
-        self.write_snapshot_info(self.snapshot_info)
 
         for x in exchanges_list:
-            if isinstance(x, dict):
-                cleaned_exchange_map_data.append(
-                    {
-                        "id": x.get("id"),
-                        "name": x.get("name"),
-                        "slug": x.get("slug"),
-                        "is_active": x.get("is_active"),
-                    }
-                )
-            else:
+            try:
+                if isinstance(x, dict):
+                    cleaned_exchange_map_data.append(
+                        {
+                            "id": x.get("id"),
+                            "name": x.get("name"),
+                            "slug": x.get("slug"),
+                            "is_active": x.get("is_active"),
+                        }
+                    )
+                else:
+                    raise ValueError("Entry is not a dictionary")
+
+            except Exception as e:
+                self.log(f"Ignored malformed entry: {e}")
                 invalid_data.append(x)
 
         if invalid_data:
@@ -131,6 +134,14 @@ class ExchangeMapExtractor(BaseExtractor):
         df_clean = self.parse(raw_data)
 
         if df_clean is not None:
+            # Adding timestamp column to the df for better tracking
+            df_clean["date_snapshot"] = self.df_snapshot_date
+            self.log(f"Snapshot timestamp: {self.df_snapshot_date}")
+
+            # write the snapshot
+            self.write_snapshot_info(self.snapshot_info)
+
+            # save the df in .parquet
             self.save_parquet(df_clean, filename="exchange_map")
 
         self.log_section("END ExchangeMapExtractor")

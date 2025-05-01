@@ -1,7 +1,6 @@
 from extract.base_extractor import BaseExtractor
 from pandas import DataFrame
 from typing import Optional
-import json
 import time
 
 
@@ -17,7 +16,7 @@ class CryptoMapExtractor(BaseExtractor):
     """
 
     def __init__(self):
-        super().__init__(name="crypto_map", endpoint="/v1/cryptocurrency/map")
+        super().__init__(name="crypto_map", endpoint="/v1/cryptocurrency/map", output_dir="crypto_map_data")
 
         self.params = {
             "listing_status": "active",
@@ -81,33 +80,35 @@ class CryptoMapExtractor(BaseExtractor):
 
         self.snapshot_info["crypto_ids"] = self.crypto_ids
         self.snapshot_info["total_active_crypto"] = len(self.crypto_ids)
-        self.write_snapshot_info(self.snapshot_info)
 
         for x in cryptos_list:
             if isinstance(x, dict):
-                # Protect the pipeline, if platform is null
-                platform_data = x.get("platform") or {}
-                cleaned_crypto_map_data.append(
-                    {
-                        "id": x.get("id"),
-                        "rank": x.get("rank"),
-                        "symbol": x.get("symbol"),
-                        "slug": x.get("slug"),
-                        "is_active": x.get("is_active"),
-                        "first_historical_data": x.get("first_historical_data"),
-                        "last_historical_data": x.get("last_historical_data"),
-                        "platform_id": platform_data.get("id"),
-                        "platform_name": platform_data.get("name"),
-                        "platform_symbol": platform_data.get("symbol"),
-                        "platform_slug": platform_data.get("slug"),
-                        "platform_token_address": platform_data.get("token_address"),
-                    }
-                )
+                try:
+                    # Protect the pipeline, if platform is null
+                    platform_data = x.get("platform") or {}
+                    cleaned_crypto_map_data.append(
+                        {
+                            "id": x.get("id"),
+                            "rank": x.get("rank"),
+                            "symbol": x.get("symbol"),
+                            "slug": x.get("slug"),
+                            "is_active": x.get("is_active"),
+                            "first_historical_data": x.get("first_historical_data"),
+                            "last_historical_data": x.get("last_historical_data"),
+                            "platform_id": platform_data.get("id"),
+                            "platform_name": platform_data.get("name"),
+                            "platform_symbol": platform_data.get("symbol"),
+                            "platform_slug": platform_data.get("slug"),
+                            "platform_token_address": platform_data.get("token_address"),
+                        }
+                    )
+                except Exception as e:
+                    self.log(f"Failed to parse crypto entry (id: {x.get('id')}): {e}")
             else:
                 invalid_data.append(x)
 
         if invalid_data:
-            self.log(f"Ignored {len(invalid_data)} malformed entries in cryptos_list.")
+            self.log(f"Parsed {len(cleaned_crypto_map_data)} crypto entries. Ignored {len(invalid_data)} invalid ones.")
 
         return DataFrame(cleaned_crypto_map_data)
 
@@ -148,9 +149,17 @@ class CryptoMapExtractor(BaseExtractor):
         if debug:
             self.save_raw_data(raw_data, filename="debug_crypto_map.json")
 
-        df_clean = self.parse(raw_data)
+        df = self.parse(raw_data)
 
-        if df_clean is not None:
-            self.save_parquet(df_clean, filename="crypto_map")
+        if df is not None:
+            # Adding timestamp column to the df for better tracking
+            df["date_snapshot"] = self.df_snapshot_date
+            self.log(f"Snapshot timestamp: {self.df_snapshot_date}")
+
+            # write the snapshot
+            self.write_snapshot_info(self.snapshot_info)
+
+            # save the df in .parquet
+            self.save_parquet(df, filename="crypto_map")
 
         self.log_section("END CryptoMapExtractor")

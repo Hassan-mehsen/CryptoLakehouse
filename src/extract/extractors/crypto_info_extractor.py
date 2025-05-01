@@ -11,27 +11,41 @@ class CryptoInfoExtractor(BaseExtractor):
     CryptoInfoExtractor:
 
     Extracts stable and complementary cryptocurrency metadata (description, logos, URLs, tags)
-    from CoinMarketCap's /v2/cryptocurrency/info endpoint.
+    from CoinMarketCap's `/v2/cryptocurrency/info` endpoint.
 
-    This data is intended to enrich dashboards and BI reports.
+    This data is intended to enrich dashboards and BI reports by providing contextual information
+    on each listed cryptocurrency (branding, platform, social links, etc.).
 
-    Handles initial full extraction and monthly differential refresh based on available information snapshots.
+    ---
 
-    Ensures data integrity, minimizes API usage, and maintains an up-to-date reference dataset.
+    Key Features:
+    - **Differential extraction**: compares current `crypto_map` snapshot with existing info to fetch only missing entries.
+    - **Initial full initialization**: occurs only once, fetching all active crypto IDs (~5000 entries).
+    - **Subsequent refreshes**: fetch only newly listed cryptos (typically 0–200 entries).
+    - **Efficient retry strategy** with exponential backoff on API failures.
+    - **Safe parsing** and flattening of nested metadata structures (including URLs and tags).
+    - **Snapshot tracking** for reproducibility, incremental logic, and auditability.
+
+    ---
+
+    Why we do not implement chunked Parquet saving:
+    - The **full initialization** is rare (only once) and fits comfortably in memory.
+    - **Daily refreshes** are lightweight and involve a small number of new cryptos.
+    - Holding all parsed data in memory improves simplicity and readability of the pipeline.
+    - If the volume or frequency increases, the class structure allows easy refactoring to stream and save in batches.
     """
 
     def __init__(self):
-        super().__init__(name="crypto_info", endpoint="/v2/cryptocurrency/info")
+        super().__init__(name="crypto_info", endpoint="/v2/cryptocurrency/info", output_dir="crypto_info_data")
 
         self.params = {"id": None, "skip_invalid": "true", "aux": "urls,logo,description,tags,platform,date_added,notice,status"}
-
         self.snapshot_info = {
             "source_endpoint": "/v1/cryptocurrency/map",
             "crypto_map_snapshot_ref": None,
             "total_info_crypto": None,
             "ids_available_info": None,
         }
-
+        self.MAX_RETRIES = 3
         self.available_crypto = []
 
     def find_crypto_ids_to_fetch(self) -> List[int]:
@@ -49,7 +63,7 @@ class CryptoInfoExtractor(BaseExtractor):
         crypto_ids = set()
         available_crypto_ids = set()
 
-        # Load crypto_map snapshot
+        # Load last crypto_map snapshot
         try:
             with open(crypto_map_path, "r", encoding="utf-8") as f:
                 lines = f.readlines()
@@ -60,7 +74,7 @@ class CryptoInfoExtractor(BaseExtractor):
                         self.snapshot_info["crypto_map_snapshot_ref"] = crypto_map_snapshot.get("snapshot_date")
                         break
         except Exception as e:
-            print(f"Error reading crypto_map snapshot: {e}")
+            self.log(f"Error reading crypto_map snapshot: {e}")
             return []
 
         # Load crypto_info snapshot if available;
@@ -78,7 +92,7 @@ class CryptoInfoExtractor(BaseExtractor):
 
     def fetch_crypto_info(self, ids: List[int]) -> Generator[dict, None, None]:
         """
-        Fetches cryptocurrency info from the API in chunks of 100 IDs to optimize API usage.
+        Fetches cryptocurrency info from the API in chunks of 100 IDs with retry and exponential backoff.
 
         Args:
             ids (List[int]): List of crypto IDs to fetch.
@@ -86,26 +100,29 @@ class CryptoInfoExtractor(BaseExtractor):
         Yields:
             dict: Partial 'data' dictionary for each chunk of fetched cryptocurrencies.
         """
-
         chunk_size = 100
         total_chunks = math.ceil(len(ids) / chunk_size)
-        raw_data = {}
 
         for i in range(total_chunks):
             chunk = ids[i * chunk_size : chunk_size * (i + 1)]
             self.params["id"] = ",".join(map(str, chunk))
 
-            raw_response = self.get_data(params=self.params)
-            raw_data = raw_response.get("data", {}) if raw_response else {}
+            for attempt in range(1, self.MAX_RETRIES + 1):
+                raw_response = self.get_data(params=self.params)
+                raw_data = raw_response.get("data", {}) if raw_response else {}
 
-            if raw_data:
-                self.log(f"Fetching chunk {i+1}/{total_chunks} -> {len(chunk)} IDs")
-                self.log("Waiting 2s to respect API rate limit")
-                yield raw_data
+                if raw_data:
+                    self.log(f"Fetching chunk {i+1}/{total_chunks} -> {len(chunk)} IDs (attempt {attempt})")
+                    self.log("Waiting 2s to respect API rate limit")
+                    yield raw_data
+                    time.sleep(2)
+                    break  # stop retrying for this chunk
+                else:
+                    self.log(f"Attempt {attempt} failed for chunk {i+1}. Retrying in {2**attempt}s...")
+                    time.sleep(2**attempt)
+
             else:
-                self.log(f"No data returned for chunk {i+1}/{total_chunks}")
-
-            time.sleep(2)
+                self.log(f"Failed to fetch chunk {i+1}/{total_chunks} after {self.MAX_RETRIES} attempts.")
 
     def safe_first(self, urls: dict, key: str) -> Optional[str]:
         """
@@ -188,23 +205,39 @@ class CryptoInfoExtractor(BaseExtractor):
         parsed_records = []
         chunk_number = 1
 
+        if not crypto_ids:
+            self.log("No crypto IDs to fetch. Skipping extraction.")
+            self.log_section("END CryptoInfoExtractor")
+            return
+
         for raw_data in self.fetch_crypto_info(ids=crypto_ids):
             parsed_chunk = self.parse(chunk_number, raw_data)
             parsed_records.extend(parsed_chunk)
             chunk_number += 1
 
+        if not parsed_records:
+            self.log("No valid cryptocurrency info records found.")
+            self.log_section("END CryptoInfoExtractor")
+            return
+
         if debug and parsed_records:
             self.save_raw_data(parsed_records, filename="debug_crypto_info.json")
             self.log(f"Debug mode: Raw parsed records saved.")
 
-        if parsed_records:
-            df = DataFrame(parsed_records)
-            self.snapshot_info["total_info_crypto"] = len(self.available_crypto)
-            self.snapshot_info["ids_available_info"] = self.available_crypto
-            self.write_snapshot_info(self.snapshot_info)
-            self.save_parquet(df, filename="crypto_info")
-            self.log(f"DataFrame saved with {len(df)} rows.")
-        else:
-            self.log("No valid cryptocurrency info records found.")
+        # Create DataFrame from parsed_records
+        df = DataFrame(parsed_records)
+
+        # Adding timestamp column to the df for better tracking
+        df["date_snapshot"] = self.df_snapshot_date
+        self.log(f"Snapshot timestamp: {self.df_snapshot_date}")
+
+        # write the snapshot
+        self.snapshot_info["total_info_crypto"] = len(self.available_crypto)
+        self.snapshot_info["ids_available_info"] = self.available_crypto
+        self.write_snapshot_info(self.snapshot_info)
+
+        # save the df in .parquet
+        self.save_parquet(df, filename="crypto_info")
+        self.log(f"DataFrame saved with {len(df)} rows.")
 
         self.log_section("END CryptoInfoExtractor")

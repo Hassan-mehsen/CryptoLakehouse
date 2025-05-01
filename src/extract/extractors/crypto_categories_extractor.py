@@ -1,7 +1,6 @@
 from extract.base_extractor import BaseExtractor
 from pandas import DataFrame, to_numeric
 from typing import List, Dict, Optional
-from datetime import datetime, timezone
 import time
 
 
@@ -19,7 +18,7 @@ class CryptoCategoriesExtractor(BaseExtractor):
     """
 
     def __init__(self):
-        super().__init__(name="crypto_categories", endpoint="/v1/cryptocurrency/categories")
+        super().__init__(name="crypto_categories", endpoint="/v1/cryptocurrency/categories", output_dir="crypto_categories")
         self.params = {"start": "1", "limit": "5000"}
         self.snapshot_info = {"source_endpoint": self.endpoint, "total_categories": None, "category_ids": None}
         self.MAX_RETRIES = 3
@@ -47,6 +46,7 @@ class CryptoCategoriesExtractor(BaseExtractor):
         self.log(f"Failed to fetch categories after {self.MAX_RETRIES} attempts.")
         return None
 
+    # Override of BaseExtractor.parse
     def parse(self, raw_data: dict) -> Optional[List[dict]]:
         """
         Parses raw API response into a list of flat category records.
@@ -112,6 +112,7 @@ class CryptoCategoriesExtractor(BaseExtractor):
         self.log("Numeric columns normalized to float64 for Parquet compatibility.")
         return df
 
+    # Override of BaseExtractor.run
     def run(self, debug: bool = False):
         """
         Main method to orchestrate extraction:
@@ -126,6 +127,7 @@ class CryptoCategoriesExtractor(BaseExtractor):
         raw_data = self.fetch_all_categories()
         parsed_records = self.parse(raw_data)
 
+        # Fast stop
         if not parsed_records:
             self.log("No data to save.")
             self.log_section("END CryptoCategoriesExtractor")
@@ -141,9 +143,8 @@ class CryptoCategoriesExtractor(BaseExtractor):
         df = self.normalize_numeric_columns(df)
 
         # Adding timestamp column to the df for better tracking
-        snapshot_date_utc = datetime.now(timezone.utc)
-        df["date_snapshot"] = snapshot_date_utc
-        self.log(f"Snapshot timestamp: {snapshot_date_utc}")
+        df["date_snapshot"] = self.df_snapshot_date
+        self.log(f"Snapshot timestamp: {self.df_snapshot_date}")
 
         # write the snapshot
         self.snapshot_info["total_categories"] = len(self.category_ids)

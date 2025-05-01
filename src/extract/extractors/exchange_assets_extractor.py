@@ -7,8 +7,48 @@ import time
 
 
 class ExchangeAssetsExtractor(BaseExtractor):
+    """
+    ExchangeAssetsExtractor:
+
+    Extractor class for retrieving on-chain asset data held by cryptocurrency exchanges
+    using the `/v1/exchange/assets` endpoint from the CoinMarketCap API.
+
+    This extractor performs a scan over a list of exchange IDs (retrieved from a previous
+    ExchangeMap snapshot) and collects wallet-level asset balances — such as token holdings,
+    platform metadata, and pricing information.
+
+    ---
+
+    Key Features:
+    - **Smart scan strategy**:
+        - Performs a full scan once per month on all exchange IDs
+        - Performs partial scans on previously known active exchanges on other runs
+    - **Handles sparse data**: most exchange IDs return no asset data, making memory usage low
+    - **Fault-tolerant** with retries and linear backoff on failed API calls
+    - **Data cleaning**: flattens nested fields (`platform`, `currency`) and handles missing values
+    - **Snapshot tracking**: logs metadata including total active exchanges and next full scan date
+
+    ---
+
+    Why we do not implement chunked Parquet saving:
+    - Although each exchange is processed individually, the vast majority (~98%) return no data
+    - Even during a full monthly scan of ~5000 IDs, only a small subset (e.g., ~100 exchanges) yield asset data
+    - Memory usage is minimal, and saving everything at once simplifies logic and file management
+    - If future changes significantly increase data volume, the code can easily be refactored to stream and save by batch
+
+    ---
+
+    Output:
+    - Cleaned asset records saved as a single `.parquet` file with a UTC timestamp
+    - Snapshot metadata saved in a `.jsonl` file for auditability and orchestration
+
+    Use cases:
+    - Enrich fact tables with asset balances by exchange
+    - Track liquidity, reserves, and multi-chain holdings of centralized exchanges
+    """
+
     def __init__(self):
-        super().__init__(name="exchange_assets", endpoint="/v1/exchange/assets")
+        super().__init__(name="exchange_assets", endpoint="/v1/exchange/assets", output_dir="exchange_assets_data")
 
         self.MAX_RETRIES = 3
         self.params = {"id": None}
@@ -67,7 +107,6 @@ class ExchangeAssetsExtractor(BaseExtractor):
 
         failed_ids = []
         active_exchanges = []
-        inactive_exchanges = []
         last_snapshot = self.read_last_snapshot()
 
         today_str = date.today().isoformat()
@@ -117,9 +156,7 @@ class ExchangeAssetsExtractor(BaseExtractor):
             self.snapshot_info["date_of_next_full_scan"] = (date.today() + timedelta(days=30)).isoformat()
         else:
             # Cleanup if active exchanges no longer return anything
-            self.snapshot_info["actif_exchanges"] = [
-                ex for ex in target_ids if ex not in failed_ids and ex not in inactive_exchanges
-            ]
+            self.snapshot_info["actif_exchanges"] = [ex for ex in target_ids if ex not in failed_ids]
             self.snapshot_info["total_actif_exchanges"] = len(self.snapshot_info["actif_exchanges"])
             self.snapshot_info["date_of_next_full_scan"] = last_snapshot.get("date_of_next_full_scan")
 
@@ -184,16 +221,28 @@ class ExchangeAssetsExtractor(BaseExtractor):
             parsed_chunk = self.parse(exchange_id, raw_data)
             parsed_records.extend(parsed_chunk)
 
+        # Fast stop
+        if not parsed_records:
+            self.log("No data to save.")
+            self.log_section("END ExchangeAssetsExtractor")
+            return
+
         if debug and parsed_records:
             self.save_raw_data(parsed_records, filename="debug_exchange_assets.json")
             self.log(f"Debug mode: Raw parsed records saved.")
 
-        if parsed_records:
-            df = DataFrame(parsed_records)
-            self.write_snapshot_info(self.snapshot_info)
-            self.save_parquet(df, filename="exchange_assets")
-            self.log(f"DataFrame saved with {len(df)} rows.")
-        else:
-            self.log("No valid asset records found.")
+        # Create DataFrame from parsed_records
+        df = DataFrame(parsed_records)
+
+        # Adding timestamp column to the df for better tracking
+        df["date_snapshot"] = self.df_snapshot_date
+        self.log(f"Snapshot timestamp: {self.df_snapshot_date}")
+
+        # write the snapshot
+        self.write_snapshot_info(self.snapshot_info)
+
+        # save the df in .parquet
+        self.save_parquet(df, filename="exchange_assets")
+        self.log(f"DataFrame saved with {len(df)} rows.")
 
         self.log_section("END ExchangeAssetsExtractor")

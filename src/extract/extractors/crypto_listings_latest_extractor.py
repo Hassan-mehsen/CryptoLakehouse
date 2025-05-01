@@ -1,8 +1,6 @@
 from extract.base_extractor import BaseExtractor
-from datetime import datetime, timezone
-from typing import List, Generator
-import pandas as pd
-import json
+from typing import List, Generator, Optional
+from pandas import DataFrame, to_numeric
 import time
 import math
 
@@ -14,17 +12,28 @@ class CryptoListingsLatestExtractor(BaseExtractor):
     Extracts **live market data** (price, volume, market cap, supply...) for **active cryptocurrencies**
     using CoinMarketCap's `/v1/cryptocurrency/listings/latest` endpoint.
 
+    This extractor is designed to handle high-frequency, high-volume market data in a memory-efficient
+    and resilient way. It breaks down the data fetch into chunks, processes and normalizes each group,
+    and saves them incrementally in Parquet format.
+
     ---
+
     Key Features:
-    - **Dynamic data** updated every 60 seconds — no dependency on snapshots.
+    - **Dynamic data** updated every 60 seconds — no dependency on historical snapshots.
     - **Pagination** with `start` and `limit=200`, optimized for API credit usage (1 credit per 200 cryptos).
     - **Data enrichment** with extended fields (`aux`).
-    - **Fault tolerance** with retry and backoff on temporary API errors.
-    - **Memory optimization** by processing data chunk by chunk.
+    - **Fault tolerance** with retry and exponential backoff on temporary API errors.
+    - **Memory optimization**: groups multiple chunks together (e.g. 5) and saves each group
+    as a separate `.parquet` file — ideal for processing large volumes without overloading memory.
+    - **Final aggregation** is avoided to improve scalability and ensure partial results are preserved
+    even if the process fails mid-run.
+
     """
 
     def __init__(self):
-        super().__init__(name="crypto_listings_latest", endpoint="/v1/cryptocurrency/listings/latest")
+        super().__init__(
+            name="crypto_listings_latest", endpoint="/v1/cryptocurrency/listings/latest", output_dir="crypto_listings_latest_data"
+        )
         self.params = {
             "start": None,
             "limit": None,
@@ -35,6 +44,7 @@ class CryptoListingsLatestExtractor(BaseExtractor):
                 "volume_30d_reported,is_market_cap_included_in_calc"
             ),
         }
+        self.snapshot_info = {"total_listed_cryptos": None, "source_endpoint": self.endpoint}
         self.MAX_RETRIES = 3
 
     def fetch_crypto_listings(self) -> Generator[dict, None, None]:
@@ -47,7 +57,7 @@ class CryptoListingsLatestExtractor(BaseExtractor):
         """
 
         chunk_size = 200
-        total_cryptos = 5000  # Based on the API
+        total_cryptos = 5000
         iteration_number = total_cryptos // chunk_size
 
         for i in range(iteration_number):
@@ -67,7 +77,7 @@ class CryptoListingsLatestExtractor(BaseExtractor):
                     time.sleep(2)
                     break
                 else:
-                    self.log(f"Attempt {attempt} failed for chunk starting at {start}. Retrying...")
+                    self.log(f"Attempt {attempt} failed for chunk starting at {start}. Retrying after {2**attempt}s...")
                     attempt += 1
                     time.sleep(2**attempt)  # Exponential backoff
 
@@ -75,7 +85,7 @@ class CryptoListingsLatestExtractor(BaseExtractor):
                 self.log(f"Failed to fetch chunk starting at {start} after {self.MAX_RETRIES} attempts.")
 
     # Override of BaseExtractor.parse
-    def parse(self, raw_data_chunk: dict) -> List[dict]:
+    def parse(self, raw_data_chunk: dict, chunk_number: int) -> List[dict]:
         """
         Parses a chunk of cryptocurrency listing data.
 
@@ -90,43 +100,48 @@ class CryptoListingsLatestExtractor(BaseExtractor):
 
         for crypto in raw_data_chunk.get("data", []):
             if isinstance(crypto, dict):
-                quote_usd = crypto.get("quote", {}).get("USD", {})
-                record = {
-                    "id": crypto.get("id"),
-                    "name": crypto.get("name"),
-                    "symbol": crypto.get("symbol"),
-                    "slug": crypto.get("slug"),
-                    "cmc_rank": crypto.get("cmc_rank"),
-                    "num_market_pairs": crypto.get("num_market_pairs"),
-                    "circulating_supply": crypto.get("circulating_supply"),
-                    "total_supply": crypto.get("total_supply"),
-                    "max_supply": crypto.get("max_supply"),
-                    "infinite_supply": crypto.get("infinite_supply"),
-                    "self_reported_circulating_supply": crypto.get("self_reported_circulating_supply"),
-                    "self_reported_market_cap": crypto.get("self_reported_market_cap"),
-                    "self_reported_tags": (
-                        ",".join(crypto.get("self_reported_tags", [])) if crypto.get("self_reported_tags") else None
-                    ),
-                    "date_added": crypto.get("date_added"),
-                    "tags": ",".join(crypto.get("tags", [])) if crypto.get("tags") else None,
-                    "platform_id": crypto.get("platform", {}).get("id") if crypto.get("platform") else None,
-                    # Quote (USD)
-                    "price_usd": quote_usd.get("price"),
-                    "volume_24h_usd": quote_usd.get("volume_24h"),
-                    "volume_change_24h": quote_usd.get("volume_change_24h"),
-                    "percent_change_1h_usd": quote_usd.get("percent_change_1h"),
-                    "percent_change_24h_usd": quote_usd.get("percent_change_24h"),
-                    "percent_change_7d_usd": quote_usd.get("percent_change_7d"),
-                    "market_cap_usd": quote_usd.get("market_cap"),
-                    "market_cap_dominance_usd": quote_usd.get("market_cap_dominance"),
-                    "fully_diluted_market_cap_usd": quote_usd.get("fully_diluted_market_cap"),
-                    "last_updated_usd": quote_usd.get("last_updated"),
-                }
-                crypto_data.append(record)
+                try:
+                    quote_usd = crypto.get("quote", {}).get("USD", {})
+                    record = {
+                        "id": crypto.get("id"),
+                        "name": crypto.get("name"),
+                        "symbol": crypto.get("symbol"),
+                        "slug": crypto.get("slug"),
+                        "cmc_rank": crypto.get("cmc_rank"),
+                        "num_market_pairs": crypto.get("num_market_pairs"),
+                        "circulating_supply": crypto.get("circulating_supply"),
+                        "total_supply": crypto.get("total_supply"),
+                        "max_supply": crypto.get("max_supply"),
+                        "infinite_supply": crypto.get("infinite_supply"),
+                        "self_reported_circulating_supply": crypto.get("self_reported_circulating_supply"),
+                        "self_reported_market_cap": crypto.get("self_reported_market_cap"),
+                        "self_reported_tags": (
+                            ",".join(crypto.get("self_reported_tags", [])) if crypto.get("self_reported_tags") else None
+                        ),
+                        "date_added": crypto.get("date_added"),
+                        "tags": (",".join(crypto.get("tags", [])) if crypto.get("tags") else None),
+                        "platform_id": (crypto.get("platform", {}).get("id") if crypto.get("platform") else None),
+                        # Quote (USD)
+                        "price_usd": quote_usd.get("price"),
+                        "volume_24h_usd": quote_usd.get("volume_24h"),
+                        "volume_change_24h": quote_usd.get("volume_change_24h"),
+                        "percent_change_1h_usd": quote_usd.get("percent_change_1h"),
+                        "percent_change_24h_usd": quote_usd.get("percent_change_24h"),
+                        "percent_change_7d_usd": quote_usd.get("percent_change_7d"),
+                        "market_cap_usd": quote_usd.get("market_cap"),
+                        "market_cap_dominance_usd": quote_usd.get("market_cap_dominance"),
+                        "fully_diluted_market_cap_usd": quote_usd.get("fully_diluted_market_cap"),
+                        "last_updated_usd": quote_usd.get("last_updated"),
+                    }
+                    crypto_data.append(record)
+                except Exception as e:
+                    self.log(f"Failed parsing listings for chunk {chunk_number}: {e}")
+                    continue
 
+        self.log(f"Parsed {len(crypto_data)} cryptocurrencies for the chunk {chunk_number}.")
         return crypto_data
 
-    def normalize_numeric_columns(self, df: pd.DataFrame) -> pd.DataFrame:
+    def normalize_numeric_columns(self, df: DataFrame) -> DataFrame:
         """
         Normalize all selected numeric columns to Pandas float64 type for safe Parquet saving.
 
@@ -155,10 +170,33 @@ class CryptoListingsLatestExtractor(BaseExtractor):
 
         for col in numeric_cols:
             if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors="coerce").astype("float64")
+                df[col] = to_numeric(df[col], errors="coerce").astype("float64")
 
         self.log("Numeric columns normalized to float64 for Parquet compatibility.")
         return df
+
+    def save_group(self, df: DataFrame, group_index: int, debug: bool):
+        """
+        Saves a grouped DataFrame of crypto listings to a Parquet file with metadata.
+
+        - Normalizes numeric columns for compatibility.
+        - Adds tracking columns: snapshot timestamp and batch index.
+        - Optionally saves the data in raw JSON format if debug mode is enabled.
+
+        Args:
+            df (DataFrame): The group of parsed crypto records to save.
+            group_index (int): The current batch index used for naming and traceability.
+            debug (bool): If True, saves the data as a raw JSON file for inspection.
+        """
+
+        df = self.normalize_numeric_columns(df)
+        df["date_snapshot"] = self.df_snapshot_date
+        df["batch_index"] = group_index
+        self.log(f"Snapshot timestamp: {self.df_snapshot_date}")
+        self.save_parquet(df, filename=f"crypto_listings_batch{group_index}")
+        self.log(f"Batch {group_index} saved with {len(df)} rows.")
+        if debug:
+            self.save_raw_data(df.to_dict(orient="records"), filename="debug_crypto_listings.json")
 
     # Override of BaseExtractor.run
     def run(self, debug: bool = False) -> None:
@@ -172,36 +210,37 @@ class CryptoListingsLatestExtractor(BaseExtractor):
         """
         self.log_section("START CryptoListingsExtractor")
 
-        parsed_records = []
+        grouped_records = []
+        group_index = 1
+        group_size = 5  # number of chunks per group before saving
         chunk_number = 1
+        total_crypto = 0
 
         for raw_data_chunk in self.fetch_crypto_listings():
-            parsed_chunk = self.parse(raw_data_chunk)
-            parsed_records.extend(parsed_chunk)
-            self.log(f"Chunk {chunk_number} parsed with {len(parsed_chunk)} cryptocurrencies.")
+            parsed_chunk = self.parse(raw_data_chunk, chunk_number)
+
+            if parsed_chunk:
+                grouped_records.extend(parsed_chunk)
+                total_crypto += len(parsed_chunk)
+
+            if chunk_number % group_size == 0 and grouped_records:
+                # save the df
+                df = DataFrame(grouped_records)
+                self.save_group(df, group_index, debug)
+
+                grouped_records.clear()
+                group_index += 1
+
             chunk_number += 1
 
-        if not parsed_records:
-            self.log("No cryptocurrency data parsed. Skipping save.")
-            self.log_section("END CryptoListingsExtractor")
-            return
+        # Save remaining data (less than group_size)
+        if grouped_records:
+            # save the df
+            df = DataFrame(grouped_records)
+            self.save_group(df, group_index, debug)
 
-        # Convert the data to a DataFrame and add a snapshote date column
-        df = pd.DataFrame(parsed_records)
-
-        # Convert all important columns to float64 before saving df to .parquet
-        df = self.normalize_numeric_columns(df)
-
-        # Adding timestamp column
-        snapshot_date_utc = datetime.now(timezone.utc)
-        df["date_snapshot"] = snapshot_date_utc
-        self.log(f"Snapshot timestamp: {snapshot_date_utc}")
-
-        if debug:
-            self.save_raw_data(parsed_records, filename="debug_crypto_listings.json")
-            self.log(f"Debug mode: Raw parsed records saved.")
-
-        self.save_parquet(df, filename="crypto_listings")
-        self.log(f"DataFrame saved with {len(df)} rows.")
+        # write the snapshot
+        self.snapshot_info["total_listed_cryptos"] = total_crypto
+        self.write_snapshot_info(self.snapshot_info)
 
         self.log_section("END CryptoListingsExtractor")

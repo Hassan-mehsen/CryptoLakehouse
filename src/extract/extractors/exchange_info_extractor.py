@@ -1,5 +1,5 @@
 from extract.base_extractor import BaseExtractor
-from typing import List, Optional, Tuple, Generator
+from typing import List, Optional, Tuple
 from pandas import DataFrame
 import json
 import math
@@ -16,7 +16,7 @@ class ExchangeInfoExtractor(BaseExtractor):
     """
 
     def __init__(self):
-        super().__init__(name="exchange_info", endpoint="/v1/exchange/info")
+        super().__init__(name="exchange_info", endpoint="/v1/exchange/info", output_dir="exchange_info_data")
         self.params = {
             "id": None,
             "aux": "urls,logo,description,date_launched,notice,status",
@@ -77,8 +77,20 @@ class ExchangeInfoExtractor(BaseExtractor):
     # Override of BaseExtractor.parse
     def parse(self, raw_data: dict) -> Optional[Tuple[DataFrame, int]]:
         """
-        Parses valid entries and returns both the DataFrame and count of valid items.
-        Ignores malformed entries and logs them.
+        Parses valid exchange info entries from raw API data.
+
+        Iterates over each entry, extracts relevant fields, handles missing data gracefully,
+        and constructs a cleaned DataFrame. Logs and skips malformed entries.
+
+        Args:
+            raw_data (dict): Raw JSON response from the CoinMarketCap /v1/exchange/info endpoint.
+
+        Returns:
+        Optional[Tuple[DataFrame, int]]:
+            - A tuple containing:
+                - A cleaned pandas DataFrame of valid exchange info (or None if parsing failed),
+                - The number of successfully parsed entries.
+            - Returns (None, 0) if parsing fails or input data is empty.
         """
 
         if not raw_data:
@@ -160,14 +172,26 @@ class ExchangeInfoExtractor(BaseExtractor):
         self.log_section("START ExchangeInfoExtractor")
 
         ids = self.get_exchange_ids_from_snapshot()
+        if not ids:
+            self.log("No exchange IDs to fetch. Skipping extraction.")
+            self.log_section("END ExchangeInfoExtractor")
+            return
+
         df_clean, valid_count = self.fetch_and_parse_with_recovery(ids)
 
         if debug and df_clean is not None:
             self.save_raw_data(df_clean.to_dict(orient="records"), filename="debug_exchange_info.json")
 
-        if df_clean is not None and not df_clean.empty:
+        if df_clean is not None:
+            # Adding timestamp column to the df for better tracking
+            df_clean["date_snapshot"] = self.df_snapshot_date
+            self.log(f"Snapshot timestamp: {self.df_snapshot_date}")
+
+            # write the snapshot
             self.snapshot_info["total_count"] = valid_count
             self.write_snapshot_info(self.snapshot_info)
+
+            # save the df in .parquet
             self.save_parquet(df_clean, filename="exchange_info")
             self.log(f"Final DataFrame saved with {valid_count} exchanges.")
         else:
