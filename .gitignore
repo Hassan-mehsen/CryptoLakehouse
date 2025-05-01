@@ -1,3 +1,15 @@
+# ============================================
+# ⚠️ IMPORTANT — DO NOT MODIFY THIS FILE UNLESS NECESSARY
+#
+# This .gitignore is carefully configured to:
+# - Prevent versioning of sensitive files (.env)
+# - Ignore large or auto-generated data outputs (*.parquet)
+# - Preserve folder structure for data and runners
+# - Allow manual inclusion of selected reference files (via exceptions)
+#
+# Only update this file if the project structure or file management strategy changes.
+# ============================================
+
 # Ignore .env file
 .env
 
@@ -6,7 +18,7 @@ src/extract/runners/*
 !src/extract/runners/__init__.py
 !src/extract/runners/README.md
 
-#Ignore tmp folder 
+# Ignore tmp folder
 tmp/
 
 # Ignore pycache folder's
@@ -15,6 +27,13 @@ src/extract/extractors/__pycache__/
 
 # Ignore all parquet files in bronze by default
 data/bronze/*.parquet
+data/bronze/exchange_map_data/*.parquet
+data/bronze/exchange_info_data/*.parquet
+data/bronze/exchange_assets_data/*.parquet
+data/bronze/crypto_map_data/*.parquet
+data/bronze/crypto_info_data/*.parquet
+data/bronze/crypto_listings_latest_data/*.parquet
+data/bronze/crypto_categories/*.parquet
 
 # EXCEPT manually selected reference files
 #!data/bronze/exchange_info-latest.parquet
