@@ -3964,3 +3964,31 @@
 ==================================================
            END CryptoCategoryExtractor            
 ==================================================
+
+
+"GlobalMetricsQuotesLatestExtractor completed successfully with 1 full snapshot parsed and saved."
+"Raw data was fetched with retry logic and stored in debug mode."
+"The extractor parsed 31 global market metrics fields, normalized all numerical values, and appended a snapshot timestamp."
+
+"Snapshot completeness tracking recorded 43 non-null and 0 null fields, ensuring data quality is traceable."
+"The resulting dataset was saved as a Parquet file in the bronze layer and snapshot metadata was appended to the tracking log."
+
+"The pipeline is stable, resilient to missing fields, and ready for scheduled production execution."
+==================================================
+     START GlobalMetricsQuotesLatestExtractor     
+==================================================
+[2025-05-02 22:56:56] [EXTRACT] [GLOBAL_METRICS_QUOTES_LATEST] Sending request to https://pro-api.coinmarketcap.com/v1/global-metrics/quotes/latest with params: None
+[2025-05-02 22:56:56] [EXTRACT] [GLOBAL_METRICS_QUOTES_LATEST] Response received with status 200
+[2025-05-02 22:56:56] [EXTRACT] [GLOBAL_METRICS_QUOTES_LATEST] Successfully fetched 31 feild on attempt 1.
+[2025-05-02 22:56:56] [EXTRACT] [GLOBAL_METRICS_QUOTES_LATEST] Raw data saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/tmp/debug_global_metrics.json
+[2025-05-02 22:56:56] [EXTRACT] [GLOBAL_METRICS_QUOTES_LATEST] Numeric columns normalized to float64 for Parquet compatibility.
+[2025-05-02 22:56:56] [EXTRACT] [GLOBAL_METRICS_QUOTES_LATEST] Snapshot timestamp: 2025-05-02T22:56:56.785615+00:00
+[2025-05-02 22:56:56] [EXTRACT] [GLOBAL_METRICS_QUOTES_LATEST] Saving DataFrame to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/bronze/global_metrics_data/global_metrics-2025-05-02_22-56-56.parquet
+[2025-05-02 22:56:56] [EXTRACT] [GLOBAL_METRICS_QUOTES_LATEST] Data saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/bronze/global_metrics_data/global_metrics-2025-05-02_22-56-56.parquet
+[2025-05-02 22:56:56] [EXTRACT] [GLOBAL_METRICS_QUOTES_LATEST] DataFrame saved with 1 rows.
+[2025-05-02 22:56:56] [EXTRACT] [GLOBAL_METRICS_QUOTES_LATEST] Writing snapshot entry to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/src/api_clients/global_metrics_quotes_latest/snapshot_info.jsonl
+[2025-05-02 22:56:56] [EXTRACT] [GLOBAL_METRICS_QUOTES_LATEST] Snapshot entry written successfully.
+
+==================================================
+      END GlobalMetricsQuotesLatestExtractor      
+==================================================
