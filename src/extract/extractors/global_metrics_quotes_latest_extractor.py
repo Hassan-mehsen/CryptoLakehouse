@@ -34,8 +34,9 @@ class GlobalMetricsQuotesLatestExtractor(BaseExtractor):
         for attempt in range(1, self.MAX_RETRIES + 1):
 
             response = self.get_data()
-
-            if response and response.get("data", {}):
+            data = response.get("data", {})
+            if response and data:
+                self.log(f"Successfully fetched {len(data)} feild on attempt {attempt}.")
                 return response.get("data", {})
 
             self.log(f"Attempt {attempt} failed. Retrying after {2**attempt}s...")
@@ -178,56 +179,78 @@ class GlobalMetricsQuotesLatestExtractor(BaseExtractor):
             "quote_total_volume_24h_yesterday_percentage_change",
             "quote_last_updated",
         ]
+        try:
+            for col in numeric_cols:
+                if col in df.columns:
+                    df[col] = to_numeric(df[col], errors="coerce").astype("float64")
 
-        for col in numeric_cols:
-            if col in df.columns:
-                df[col] = to_numeric(df[col], errors="coerce").astype("float64")
+            self.log("Numeric columns normalized to float64 for Parquet compatibility.")
+            return df
 
-        self.log("Numeric columns normalized to float64 for Parquet compatibility.")
-        return df
+        except Exception as e:
+            self.log(f"Error when casting the columns : {e}")
 
     # Override of BaseExtractor.run
     def run(self, debug: bool = False):
         """
-        Main execution method.
-        - Fetches data from the API.
-        - Parses and normalizes the result.
-        - Appends timestamp.
-        - Saves both snapshot and Parquet file.
+        Main execution method for the extractor.
+
+        Steps:
+        - Fetch data from the API with retry logic.
+        - Parse and validate the response.
+        - Log and optionally save raw data if debug is enabled.
+        - Convert to DataFrame and normalize numerical fields.
+        - Append snapshot timestamp and completeness metadata.
+        - Save the data to Parquet and write snapshot info.
         """
         self.log_section("START GlobalMetricsQuotesLatestExtractor")
 
+        # Step 1: Fetch raw data
         raw_data = self.fetch_global_metrics()
-
         if not raw_data:
             self.log("No valid global metrics data found. Skipping the process.")
             self.log_section("END GlobalMetricsQuotesLatestExtractor")
             return
 
+        # Step 2: Parse and validate the data
         parsed_data = self.parse(raw_data)
         if not parsed_data:
             self.log("Parsing failed. Skipping the process.")
             self.log_section("END GlobalMetricsQuotesLatestExtractor")
             return
 
+        # Step 3 (optional): Save raw data for debugging
         if debug:
             self.save_raw_data(raw_data, filename="debug_global_metrics.json")
 
-        #
+        # Step 4: Convert to DataFrame
         df = DataFrame([parsed_data])
+        if df.empty:
+            self.log("Parsed dataframe is empty. Skipping normalization and save")
+            self.log_section("END GlobalMetricsQuotesLatestExtractor")
+            return
 
-        if df is not None:
-            normalized_df = self.normalize_numeric_columns(df=df)
-            normalized_df["date_snapshot"] = self.df_snapshot_date
-            self.log(f"Snapshot timestamp: {self.df_snapshot_date}")
+        # Step 5: Normalize numeric columns and add snapshot timestamp
+        normalized_df = self.normalize_numeric_columns(df=df)
+        normalized_df["date_snapshot"] = self.df_snapshot_date
+        self.log(f"Snapshot timestamp: {self.df_snapshot_date}")
 
-            # write the snapshot
-            self.write_snapshot_info(self.snapshot_info)
+        # Step 6: Compute null/non-null field counts and update snapshot metadata
+        non_null_fields = sum(v is not None for v in parsed_data.values())
+        null_fields = len(parsed_data) - non_null_fields
+        self.snapshot_info.update(
+            {
+                "non_null_fields": non_null_fields,
+                "null_fields": null_fields,
+            }
+        )
+        if null_fields > 0:
+            self.log(f"Warning: {null_fields} fields are null in the parsed data.")
 
-            # save the df in .parquet
-            self.save_parquet(df, filename="global_metrics")
-            self.log(f"DataFrame saved with {len(df)} rows.")
-        else:
-            self.log("")
+        # Step 7: Save Parquet file and snapshot info
+        self.save_parquet(normalized_df, filename="global_metrics")
+        self.log(f"DataFrame saved with {len(df)} rows.")
+
+        self.write_snapshot_info(self.snapshot_info)
 
         self.log_section("END GlobalMetricsQuotesLatestExtractor")
