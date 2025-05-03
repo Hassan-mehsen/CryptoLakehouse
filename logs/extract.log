@@ -3992,3 +3992,53 @@
 ==================================================
       END GlobalMetricsQuotesLatestExtractor      
 ==================================================
+
+"FearAndGreedHistoricalExtractor completed successfully with 500 daily sentiment records extracted."
+"Historical data from the Alternative.me Fear & Greed Index was fetched in a single attempt, "
+"parsed directly without transformation, and stored efficiently in Parquet format."
+
+"Each record represents daily market psychology at 00:00 UTC."
+"Snapshot timestamp and historical date range were tracked in metadata."
+"Raw response saved for traceability and debugging."
+
+==================================================
+      START FearAndGreedHistoricalExtractor       
+==================================================
+[2025-05-03 01:44:14] [EXTRACT] [FEAR_AND_GREED_HISTORICAL] Sending request to https://pro-api.coinmarketcap.com/v3/fear-and-greed/historical with params: {'start': 1, 'limit': 500}
+[2025-05-03 01:44:14] [EXTRACT] [FEAR_AND_GREED_HISTORICAL] Response received with status 200
+[2025-05-03 01:44:14] [EXTRACT] [FEAR_AND_GREED_HISTORICAL] Successfully fetched 500 fields on attempt 1.
+[2025-05-03 01:44:14] [EXTRACT] [FEAR_AND_GREED_HISTORICAL] Raw data saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/tmp/debug_fear_and_greed.json
+[2025-05-03 01:44:14] [EXTRACT] [FEAR_AND_GREED_HISTORICAL] Snapshot timestamp: 2025-05-03T01:44:14.124294+00:00
+[2025-05-03 01:44:14] [EXTRACT] [FEAR_AND_GREED_HISTORICAL] Saving DataFrame to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/bronze/fear_and_greed_data/fear_and_greed-2025-05-03_01-44-14.parquet
+[2025-05-03 01:44:14] [EXTRACT] [FEAR_AND_GREED_HISTORICAL] Data saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/bronze/fear_and_greed_data/fear_and_greed-2025-05-03_01-44-14.parquet
+[2025-05-03 01:44:14] [EXTRACT] [FEAR_AND_GREED_HISTORICAL] DataFrame saved with 500 rows.
+[2025-05-03 01:44:14] [EXTRACT] [FEAR_AND_GREED_HISTORICAL] Writing snapshot entry to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/src/api_clients/fear_and_greed_historical/snapshot_info.jsonl
+[2025-05-03 01:44:14] [EXTRACT] [FEAR_AND_GREED_HISTORICAL] Snapshot entry written successfully.
+
+==================================================
+       END FearAndGreedHistoricalExtractor        
+==================================================
+
+"FearAndGreedLatestExtractor executed successfully with the most recent market sentiment captured."
+"The extractor fetched and persisted the latest Crypto Fear & Greed Index snapshot in under one second."
+"A single record was saved to Parquet, and the snapshot log was updated for traceability."
+
+"This extractor is designed for frequent, lightweight execution (e.g., hourly or daily) "
+"to append near-real-time sentiment data into the fact table."
+==================================================
+        START FearAndGreedLatestExtractor         
+==================================================
+[2025-05-03 11:10:35] [EXTRACT] [FEAR_AND_GREED_LATEST] Sending request to https://pro-api.coinmarketcap.com/v3/fear-and-greed/latest with params: None
+[2025-05-03 11:10:35] [EXTRACT] [FEAR_AND_GREED_LATEST] Response received with status 200
+[2025-05-03 11:10:35] [EXTRACT] [FEAR_AND_GREED_LATEST] Successfully fetched latest sentiment on attempt 1.
+[2025-05-03 11:10:35] [EXTRACT] [FEAR_AND_GREED_LATEST] Raw data saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/tmp/debug_fear_and_greed_latest.json
+[2025-05-03 11:10:35] [EXTRACT] [FEAR_AND_GREED_LATEST] Snapshot timestamp: 2025-05-03T11:10:35.131222+00:00
+[2025-05-03 11:10:35] [EXTRACT] [FEAR_AND_GREED_LATEST] Saving DataFrame to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/bronze/latest_fear_and_greed_data/fear_and_greed_latest-2025-05-03_11-10-35.parquet
+[2025-05-03 11:10:35] [EXTRACT] [FEAR_AND_GREED_LATEST] Data saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/bronze/latest_fear_and_greed_data/fear_and_greed_latest-2025-05-03_11-10-35.parquet
+[2025-05-03 11:10:35] [EXTRACT] [FEAR_AND_GREED_LATEST] DataFrame saved with 1 rows.
+[2025-05-03 11:10:35] [EXTRACT] [FEAR_AND_GREED_LATEST] Writing snapshot entry to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/src/api_clients/fear_and_greed_latest/snapshot_info.jsonl
+[2025-05-03 11:10:35] [EXTRACT] [FEAR_AND_GREED_LATEST] Snapshot entry written successfully.
+
+==================================================
+         END FearAndGreedLatestExtractor          
+==================================================
