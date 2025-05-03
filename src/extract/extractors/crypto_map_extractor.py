@@ -127,6 +127,7 @@ class CryptoMapExtractor(BaseExtractor):
         """
         self.log_section("START CryptoMapExtractor")
 
+        # Step 1: Fetch with retry
         attempts = 0
         raw_data = None
 
@@ -146,20 +147,24 @@ class CryptoMapExtractor(BaseExtractor):
             self.log_section("END CryptoMapExtractor")
             return
 
+        # Step 2: Debug (optional)
         if debug:
             self.save_raw_data(raw_data, filename="debug_crypto_map.json")
 
+        # Step 3: Parse response
         df = self.parse(raw_data)
+        if df is None or df.empty:
+            self.log("Parsed DataFrame is empty. Skipping save.")
+            self.log_section("END CryptoMapExtractor")
+            return
 
-        if df is not None:
-            # Adding timestamp column to the df for better tracking
-            df["date_snapshot"] = self.df_snapshot_date
-            self.log(f"Snapshot timestamp: {self.df_snapshot_date}")
+        # Step 4: Add timestamp
+        df["date_snapshot"] = self.df_snapshot_date
+        self.log(f"Snapshot timestamp: {self.df_snapshot_date}")
 
-            # write the snapshot
-            self.write_snapshot_info(self.snapshot_info)
-
-            # save the df in .parquet
-            self.save_parquet(df, filename="crypto_map")
+        # Step 5: Snapshot info + Parquet save
+        self.write_snapshot_info(self.snapshot_info)
+        self.save_parquet(df, filename="crypto_map")
+        self.log(f"DataFrame saved with {len(df)} rows.")
 
         self.log_section("END CryptoMapExtractor")

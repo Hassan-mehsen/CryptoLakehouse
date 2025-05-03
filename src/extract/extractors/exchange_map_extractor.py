@@ -110,6 +110,7 @@ class ExchangeMapExtractor(BaseExtractor):
         """
         self.log_section("START ExchangeMapExtractor")
 
+        # Step 1: Retry-aware fetch
         attempts = 0
         raw_data = None
 
@@ -128,20 +129,25 @@ class ExchangeMapExtractor(BaseExtractor):
             self.log_section("END ExchangeMapExtractor")
             return
 
+        # Step 2: Save debug data if requested
         if debug:
             self.save_raw_data(raw_data, filename="debug_exchange_map.json")
 
+        # Step 3: Parse and convert to DataFrame
         df_clean = self.parse(raw_data)
+        if df_clean is None or df_clean.empty:
+            self.log("Parsed DataFrame is empty. Skipping save.")
+            self.log_section("END ExchangeMapExtractor")
+            return
 
-        if df_clean is not None:
-            # Adding timestamp column to the df for better tracking
-            df_clean["date_snapshot"] = self.df_snapshot_date
-            self.log(f"Snapshot timestamp: {self.df_snapshot_date}")
+        # Step 4: Add timestamp and write snapshot
+        df_clean["date_snapshot"] = self.df_snapshot_date
+        self.log(f"Snapshot timestamp: {self.df_snapshot_date}")
+        self.snapshot_info["records_fetched"] = len(df_clean)
+        self.write_snapshot_info(self.snapshot_info)
 
-            # write the snapshot
-            self.write_snapshot_info(self.snapshot_info)
-
-            # save the df in .parquet
-            self.save_parquet(df_clean, filename="exchange_map")
+        # Step 5: Save Parquet file
+        self.save_parquet(df_clean, filename="exchange_map")
+        self.log(f"DataFrame saved with {len(df_clean)} rows.")
 
         self.log_section("END ExchangeMapExtractor")

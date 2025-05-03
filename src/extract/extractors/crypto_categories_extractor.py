@@ -1,6 +1,6 @@
 from extract.base_extractor import BaseExtractor
 from pandas import DataFrame, to_numeric
-from typing import List, Dict, Optional
+from typing import List, Optional
 import time
 
 
@@ -18,7 +18,7 @@ class CryptoCategoriesExtractor(BaseExtractor):
     """
 
     def __init__(self):
-        super().__init__(name="crypto_categories", endpoint="/v1/cryptocurrency/categories", output_dir="crypto_categories")
+        super().__init__(name="crypto_categories", endpoint="/v1/cryptocurrency/categories", output_dir="crypto_categories_data")
         self.params = {"start": "1", "limit": "5000"}
         self.snapshot_info = {"source_endpoint": self.endpoint, "total_categories": None, "category_ids": None}
         self.MAX_RETRIES = 3
@@ -113,47 +113,52 @@ class CryptoCategoriesExtractor(BaseExtractor):
         return df
 
     # Override of BaseExtractor.run
-    def run(self, debug: bool = False):
+    def run(self, debug: bool = False) -> None:
         """
-        Main method to orchestrate extraction:
-        - Fetch all categories.
-        - Parse into normalized records.
-        - Track snapshot metadata.
-        - Store as Parquet file.
-        - Save debug JSON if required.
+        Main execution method for the extractor.
+
+        Steps:
+        - Fetch all category data from the API.
+        - Parse and validate the response.
+        - Log and optionally save raw data if debug is enabled.
+        - Convert to DataFrame and normalize numerical fields.
+        - Append snapshot timestamp and metadata (total category count, IDs).
+        - Save the data to Parquet and write snapshot info.
         """
         self.log_section("START CryptoCategoriesExtractor")
 
+        # Step 1: Fetch raw category data
         raw_data = self.fetch_all_categories()
         parsed_records = self.parse(raw_data)
 
-        # Fast stop
+        # Step 2: Validate parsed records
         if not parsed_records:
-            self.log("No data to save.")
+            self.log("No categories data to save. Skipping.")
             self.log_section("END CryptoCategoriesExtractor")
             return
 
+        # Step 3 (optional): Save raw data for debugging
         if debug:
             self.save_raw_data(parsed_records, filename="debug_crypto_categories.json")
             self.log("Debug mode: Raw parsed records saved.")
 
-        # Create DataFrame from parsed_records and normalize numeric columns to float64
-        # to ensure safe storage of large values and full compatibility
+        # Step 4: Convert to DataFrame and normalize numerical columns
         df = DataFrame(parsed_records)
         df = self.normalize_numeric_columns(df)
 
-        # Adding timestamp column to the df for better tracking
+        # Step 5: Add snapshot timestamp
         df["date_snapshot"] = self.df_snapshot_date
         self.log(f"Snapshot timestamp: {self.df_snapshot_date}")
 
-        # write the snapshot
+        # Step 6: Update snapshot metadata
         self.snapshot_info["total_categories"] = len(self.category_ids)
         self.snapshot_info["category_ids"] = self.category_ids
         self.write_snapshot_info(self.snapshot_info)
 
-        # save the df in .parquet
+        # Step 7: Save Parquet file and snapshot
         self.save_parquet(df, filename="crypto_categories")
+        self.write_snapshot_info(self.snapshot_info)
+
         self.log(f"DataFrame saved with {len(df)} rows.")
-        self.log("Extraction complete.")
 
         self.log_section("END CryptoCategoriesExtractor")

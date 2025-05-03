@@ -131,7 +131,7 @@ class ExchangeInfoExtractor(BaseExtractor):
                 invalid_data.append((k, v))
 
         if invalid_data:
-            self.log(f"Ignored {len(invalid_data)} malformed entries in exchanges_info :  {[k for k, _ in invalid_data][:5]}...")
+            self.log(f"Ignored {len(invalid_data)} malformed entries in exchanges_info : {[k for k, _ in invalid_data][:5]}...")
 
         return DataFrame(cleaned_exchange_info_data), len(cleaned_exchange_info_data)
 
@@ -164,26 +164,33 @@ class ExchangeInfoExtractor(BaseExtractor):
     # Override of BaseExtractor.run
     def run(self, debug: bool = False) -> None:
         """
-        Main execution method:
-        - Loads exchange IDs from exchange_map
-        - Fetches and parses data with fallback if needed
-        - Saves result as parquet + snapshot info
+        Main execution method for the extractor.
+
+        Steps:
+        - Load exchange IDs from the latest exchange_map snapshot.
+        - Fetch and parse exchange metadata with fallback logic.
+        - Optionally save parsed records for debugging.
+        - Add snapshot timestamp and write snapshot metadata.
+        - Save the result to a Parquet file.
         """
         self.log_section("START ExchangeInfoExtractor")
 
+        # Step 1: Load IDs from snapshot
         ids = self.get_exchange_ids_from_snapshot()
         if not ids:
             self.log("No exchange IDs to fetch. Skipping extraction.")
             self.log_section("END ExchangeInfoExtractor")
             return
 
+        # Step 2: Fetch and parse with fallback logic
         df_clean, valid_count = self.fetch_and_parse_with_recovery(ids)
 
+        # Step 3: Save debug data (optional)
         if debug and df_clean is not None:
             self.save_raw_data(df_clean.to_dict(orient="records"), filename="debug_exchange_info.json")
 
+        # Step 4: Validate and persist
         if df_clean is not None:
-            # Adding timestamp column to the df for better tracking
             df_clean["date_snapshot"] = self.df_snapshot_date
             self.log(f"Snapshot timestamp: {self.df_snapshot_date}")
 

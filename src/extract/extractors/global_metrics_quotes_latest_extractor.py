@@ -191,7 +191,7 @@ class GlobalMetricsQuotesLatestExtractor(BaseExtractor):
             self.log(f"Error when casting the columns : {e}")
 
     # Override of BaseExtractor.run
-    def run(self, debug: bool = False):
+    def run(self, debug: bool = False) -> None:
         """
         Main execution method for the extractor.
 

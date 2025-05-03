@@ -1,5 +1,5 @@
 from extract.base_extractor import BaseExtractor
-from typing import List, Generator, Optional
+from typing import List, Generator
 from pandas import DataFrame, to_numeric
 import time
 import math
@@ -201,12 +201,13 @@ class CryptoListingsLatestExtractor(BaseExtractor):
     # Override of BaseExtractor.run
     def run(self, debug: bool = False) -> None:
         """
-        Main execution method:
-        - Fetches all active crypto listings chunk by chunk
-        - Parses and aggregates all data
-        - Adds a date_snapshot for tracking
-        - Saves the results to a Parquet file
-        - Optionally saves raw parsed data in debug mode
+        Main execution method for the extractor.
+
+        Steps:
+        - Fetch all active cryptocurrency listings in chunks.
+        - Parse and group the results incrementally.
+        - Save each group as a separate Parquet file to reduce memory usage.
+        - Append snapshot metadata and optionally save debug JSON.
         """
         self.log_section("START CryptoListingsExtractor")
 
@@ -216,6 +217,7 @@ class CryptoListingsLatestExtractor(BaseExtractor):
         chunk_number = 1
         total_crypto = 0
 
+        # Step 1: Fetch and parse chunk by chunk
         for raw_data_chunk in self.fetch_crypto_listings():
             parsed_chunk = self.parse(raw_data_chunk, chunk_number)
 
@@ -224,7 +226,7 @@ class CryptoListingsLatestExtractor(BaseExtractor):
                 total_crypto += len(parsed_chunk)
 
             if chunk_number % group_size == 0 and grouped_records:
-                # save the df
+                # Step 2: Save each group as a separate Parquet
                 df = DataFrame(grouped_records)
                 self.save_group(df, group_index, debug)
 
@@ -233,13 +235,12 @@ class CryptoListingsLatestExtractor(BaseExtractor):
 
             chunk_number += 1
 
-        # Save remaining data (less than group_size)
+        # Step 3: Save remaining records not yet written
         if grouped_records:
-            # save the df
             df = DataFrame(grouped_records)
             self.save_group(df, group_index, debug)
 
-        # write the snapshot
+        # Step 4: Update and write snapshot metadata
         self.snapshot_info["total_listed_cryptos"] = total_crypto
         self.write_snapshot_info(self.snapshot_info)
 

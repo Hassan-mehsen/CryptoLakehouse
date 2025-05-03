@@ -211,37 +211,46 @@ class ExchangeAssetsExtractor(BaseExtractor):
         return result
 
     # Override of BaseExtractor.run
-    def run(self, debug: bool = False):
+    def run(self, debug: bool = False) -> None:
+        """
+        Main execution method for the extractor.
+
+        Steps:
+        - Load exchange IDs from the snapshot.
+        - Fetch and parse assets for each exchange with fallback handling.
+        - Optionally save parsed records in debug mode.
+        - Add snapshot timestamp to the DataFrame.
+        - Save final DataFrame as a Parquet file and update snapshot info.
+        """
         self.log_section("START ExchangeAssetsExtractor")
 
+        # Step 1: Load exchange IDs from previous snapshot
         ids = self.get_exchange_ids_from_snapshot()
         parsed_records = []
 
+        # Step 2: Fetch and parse assets for each exchange
         for exchange_id, raw_data in self.fetch_assets_per_exchange_with_recovery(ids):
             parsed_chunk = self.parse(exchange_id, raw_data)
             parsed_records.extend(parsed_chunk)
 
-        # Fast stop
+        # Step 3: Stop early if nothing was parsed
         if not parsed_records:
             self.log("No data to save.")
             self.log_section("END ExchangeAssetsExtractor")
             return
 
+        # Step 4: Debug (optional)
         if debug and parsed_records:
             self.save_raw_data(parsed_records, filename="debug_exchange_assets.json")
             self.log(f"Debug mode: Raw parsed records saved.")
 
-        # Create DataFrame from parsed_records
+        # Step 5: Convert to DataFrame and add timestamp
         df = DataFrame(parsed_records)
-
-        # Adding timestamp column to the df for better tracking
         df["date_snapshot"] = self.df_snapshot_date
         self.log(f"Snapshot timestamp: {self.df_snapshot_date}")
 
-        # write the snapshot
+        # Step 6: Save snapshot and DataFrame
         self.write_snapshot_info(self.snapshot_info)
-
-        # save the df in .parquet
         self.save_parquet(df, filename="exchange_assets")
         self.log(f"DataFrame saved with {len(df)} rows.")
 

@@ -58,10 +58,6 @@ class CryptoInfoExtractor(BaseExtractor):
             list: List of crypto IDs to fetch.
         """
         crypto_map_path = self.PROJECT_ROOT / "src/api_clients/crypto_map/snapshot_info.jsonl"
-        crypto_info_path = self.PROJECT_ROOT / "src/api_clients/crypto_info/snapshot_info.jsonl"
-
-        crypto_ids = set()
-        available_crypto_ids = set()
 
         # Load last crypto_map snapshot
         try:
@@ -102,6 +98,7 @@ class CryptoInfoExtractor(BaseExtractor):
         """
         chunk_size = 100
         total_chunks = math.ceil(len(ids) / chunk_size)
+        success = False
 
         for i in range(total_chunks):
             chunk = ids[i * chunk_size : chunk_size * (i + 1)]
@@ -115,13 +112,14 @@ class CryptoInfoExtractor(BaseExtractor):
                     self.log(f"Fetching chunk {i+1}/{total_chunks} -> {len(chunk)} IDs (attempt {attempt})")
                     self.log("Waiting 2s to respect API rate limit")
                     yield raw_data
+                    success = True
                     time.sleep(2)
                     break  # stop retrying for this chunk
                 else:
                     self.log(f"Attempt {attempt} failed for chunk {i+1}. Retrying in {2**attempt}s...")
                     time.sleep(2**attempt)
 
-            else:
+            if not success:
                 self.log(f"Failed to fetch chunk {i+1}/{total_chunks} after {self.MAX_RETRIES} attempts.")
 
     def safe_first(self, urls: dict, key: str) -> Optional[str]:
@@ -193,50 +191,60 @@ class CryptoInfoExtractor(BaseExtractor):
     # Override of BaseExtractor.run
     def run(self, debug: bool = False) -> None:
         """
-        Executes the full extraction pipeline:
-        - Fetches cryptocurrency info data.
-        - Parses and aggregates the results.
-        - Writes snapshots and saves the DataFrame as Parquet.
-        - Supports debug mode to save raw parsed records.
+        Main execution method for the extractor.
+
+        Steps:
+        - Identify crypto IDs to fetch using snapshot comparison.
+        - Fetch cryptocurrency info data in chunks.
+        - Parse and aggregate all results.
+        - Log and optionally save raw parsed records if debug mode is enabled.
+        - Create DataFrame and append snapshot timestamp.
+        - Save the data to Parquet and update snapshot metadata.
+
+        Ensures:
+        - Traceable data lineage.
+        - Clean logging for each chunk and snapshot.
+        - Consistency with the overall ETL framework.
         """
         self.log_section("START CryptoInfoExtractor")
 
+        # Step 1: Identify IDs to fetch
         crypto_ids = self.find_crypto_ids_to_fetch()
-        parsed_records = []
-        chunk_number = 1
-
         if not crypto_ids:
             self.log("No crypto IDs to fetch. Skipping extraction.")
             self.log_section("END CryptoInfoExtractor")
             return
 
+        # Step 2: Fetch and parse data chunk by chunk
+        parsed_records = []
+        chunk_number = 1
         for raw_data in self.fetch_crypto_info(ids=crypto_ids):
             parsed_chunk = self.parse(chunk_number, raw_data)
             parsed_records.extend(parsed_chunk)
             chunk_number += 1
 
+        # Step 3: Validate parsed data
         if not parsed_records:
             self.log("No valid cryptocurrency info records found.")
             self.log_section("END CryptoInfoExtractor")
             return
 
+        # Step 4 (optional): Save parsed raw data for debugging
         if debug and parsed_records:
             self.save_raw_data(parsed_records, filename="debug_crypto_info.json")
             self.log(f"Debug mode: Raw parsed records saved.")
 
-        # Create DataFrame from parsed_records
+        # Step 5: Create DataFrame and add snapshot timestamp
         df = DataFrame(parsed_records)
-
-        # Adding timestamp column to the df for better tracking
         df["date_snapshot"] = self.df_snapshot_date
         self.log(f"Snapshot timestamp: {self.df_snapshot_date}")
 
-        # write the snapshot
+        # Step 6: Update and write snapshot metadata
         self.snapshot_info["total_info_crypto"] = len(self.available_crypto)
         self.snapshot_info["ids_available_info"] = self.available_crypto
         self.write_snapshot_info(self.snapshot_info)
 
-        # save the df in .parquet
+        # Step 7: Save as Parquet
         self.save_parquet(df, filename="crypto_info")
         self.log(f"DataFrame saved with {len(df)} rows.")
 

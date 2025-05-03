@@ -12,7 +12,9 @@ class FearAndGreedHistoricalExtractor(BaseExtractor):
     """
 
     def __init__(self):
-        super().__init__(name="fear_and_greed_historical", endpoint="/v3/fear-and-greed/historical", output_dir="fear_and_greed_data")
+        super().__init__(
+            name="fear_and_greed_historical", endpoint="/v3/fear-and-greed/historical", output_dir="fear_and_greed_data"
+        )
         self.params = {"start": 1, "limit": 500}
         self.snapshot_info = {
             "source_endpoint": self.endpoint,

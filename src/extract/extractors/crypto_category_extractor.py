@@ -1,5 +1,5 @@
-from extract.base_extractor import BaseExtractor
 from typing import List, Generator, Tuple, Optional
+from extract.base_extractor import BaseExtractor
 from pandas import DataFrame
 import time
 import json
@@ -36,7 +36,7 @@ class CryptoCategoryExtractor(BaseExtractor):
             "source_endpoint": self.endpoint,
             "crypto_categories_snapshot_ref": None,
             "total_category_fetched": None,
-            "category_ids": []
+            "category_ids": [],
         }
 
     def find_category_ids_to_fetch(self) -> List[str]:
@@ -159,49 +159,59 @@ class CryptoCategoryExtractor(BaseExtractor):
     # Override of BaseExtractor.run
     def run(self, debug: bool = False) -> None:
         """
-        Main execution method:
+        Main execution method for the extractor.
 
-        - Identifies category IDs still to be processed using snapshot comparison.
-        - For each missing category, fetches the list of coins it contains from the API.
-        - Parses and flattens the (crypto_id, category_id) relationships.
-        - Writes results to a Parquet file and updates snapshot metadata.
-        - Supports debug mode to save raw parsed output for inspection.
+        Steps:
+        - Identify missing category IDs to process via snapshot comparison.
+        - Fetch data for each category ID from the CoinMarketCap API.
+        - Parse and flatten the (crypto_id, category_id) relationships.
+        - Log and optionally save raw data if debug mode is enabled.
+        - Create DataFrame, add snapshot timestamp.
+        - Save the data to Parquet and update snapshot metadata.
 
-        The pipeline ensures idempotence and efficient API usage, avoiding redundant calls and duplicate storage.
+        Ensures:
+        - Idempotent behavior (only new categories fetched).
+        - Efficient API usage with retry and delay handling.
+        - Traceable and structured data lineage.
         """
 
         self.log_section("START CryptoCategoryExtractor")
 
+        # Step 1: Identify category IDs to fetch
         category_ids = self.find_category_ids_to_fetch()
-
         if not category_ids:
             self.log("No category IDs to fetch. Skipping extraction.")
             self.log_section("END CryptoCategoryExtractor")
             return
 
+        # Step 2: Fetch and parse data for each category
         all_links = []
-
         for raw_data, pos in self.fetch_crypto_category(category_ids=category_ids):
             parsed_category = self.parse(raw_category_data=raw_data, id_pos=pos)
             if parsed_category:
                 all_links.extend(parsed_category)
 
+        # Step 3: Validate results
         if not all_links:
             self.log("No valid cryptocurrency-category links found.")
             self.log_section("END CryptoCategoryExtractor")
             return
 
+        # Step 4 (optional): Save raw data for debugging
         if debug:
             self.save_raw_data(all_links, filename="debug_crypto_category.json")
             self.log("Debug mode: Raw parsed records saved.")
 
+        # Step 5: Convert to DataFrame and add snapshot timestamp
         df = DataFrame(all_links, columns=["crypto_id", "category_id"])
         df["date_snapshot"] = self.df_snapshot_date
         self.log(f"Snapshot timestamp: {self.df_snapshot_date}")
 
+        # Step 6: Update and write snapshot metadata
         self.snapshot_info["total_category_fetched"] = len(self.snapshot_info["category_ids"])
         self.write_snapshot_info(self.snapshot_info)
 
+        # Step 7: Save as Parquet
         self.save_parquet(df, filename="link_crypto_category")
         self.log(f"DataFrame saved with {len(df)} rows.")
 
