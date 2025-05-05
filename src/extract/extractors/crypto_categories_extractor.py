@@ -19,8 +19,13 @@ class CryptoCategoriesExtractor(BaseExtractor):
 
     def __init__(self):
         super().__init__(name="crypto_categories", endpoint="/v1/cryptocurrency/categories", output_dir="crypto_categories_data")
+
         self.params = {"start": "1", "limit": "5000"}
-        self.snapshot_info = {"source_endpoint": self.endpoint, "total_categories": None, "category_ids": None}
+        self.snapshot_info = {
+            "source_endpoint": self.endpoint, 
+            "total_categories": None,
+            "category_ids": None
+        }
         self.MAX_RETRIES = 3
         self.category_ids = []
 
@@ -153,7 +158,6 @@ class CryptoCategoriesExtractor(BaseExtractor):
         # Step 6: Update snapshot metadata
         self.snapshot_info["total_categories"] = len(self.category_ids)
         self.snapshot_info["category_ids"] = self.category_ids
-        self.write_snapshot_info(self.snapshot_info)
 
         # Step 7: Save Parquet file and snapshot
         self.save_parquet(df, filename="crypto_categories")

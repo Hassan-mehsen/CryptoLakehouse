@@ -1,5 +1,6 @@
 from extract.base_extractor import BaseExtractor
 from typing import Optional, List, Generator
+from datetime import date, timedelta
 from pandas import DataFrame
 import json
 import time
@@ -41,6 +42,7 @@ class CryptoInfoExtractor(BaseExtractor):
         self.params = {"id": None, "skip_invalid": "true", "aux": "urls,logo,description,tags,platform,date_added,notice,status"}
         self.snapshot_info = {
             "source_endpoint": "/v1/cryptocurrency/map",
+            "date_of_next_full_scan": None,
             "crypto_map_snapshot_ref": None,
             "total_info_crypto": None,
             "ids_available_info": None,
@@ -57,7 +59,7 @@ class CryptoInfoExtractor(BaseExtractor):
         Returns:
             list: List of crypto IDs to fetch.
         """
-        crypto_map_path = self.PROJECT_ROOT / "src/api_clients/crypto_map/snapshot_info.jsonl"
+        crypto_map_path = self.PROJECT_ROOT / "metadata/extract/crypto_map/snapshot_info.jsonl"
 
         # Load last crypto_map snapshot
         try:
@@ -75,14 +77,27 @@ class CryptoInfoExtractor(BaseExtractor):
 
         # Load crypto_info snapshot if available;
         # if not found or empty, treat as initialization (full crypto_info extraction).
+        # if today is the date of the full scan refetch all crypto info to be uptodate
+        today_str = date.today().isoformat()
         crypto_info_snapshot = self.read_last_snapshot()
-        if crypto_info_snapshot and crypto_info_snapshot.get("ids_available_info", []):
+        if (
+            crypto_info_snapshot
+            and crypto_info_snapshot.get("ids_available_info", [])
+            and today_str != crypto_info_snapshot.get("date_of_next_full_scan")
+        ):
             available_crypto_ids = set(crypto_info_snapshot.get("ids_available_info", []))
+            self.snapshot_info["date_of_next_full_scan"] = crypto_info_snapshot.get("date_of_next_full_scan")
         else:
             available_crypto_ids = set()
+            crypto_info_snapshot["date_of_next_full_scan"] = (date.today() + timedelta(days=30)).isoformat()
 
         # Compute missing IDs
         ids_to_fetch = crypto_ids - available_crypto_ids
+
+        # update snapshote metadata
+        self.snapshot_info["total_info_crypto"] = len(list(available_crypto_ids)) + len(ids_to_fetch)
+        self.snapshot_info["ids_available_info"] = list(available_crypto_ids) + list(ids_to_fetch)
+        self.write_snapshot_info(self.snapshot_info)
 
         return list(ids_to_fetch)
 
@@ -239,12 +254,7 @@ class CryptoInfoExtractor(BaseExtractor):
         df["date_snapshot"] = self.df_snapshot_date
         self.log(f"Snapshot timestamp: {self.df_snapshot_date}")
 
-        # Step 6: Update and write snapshot metadata
-        self.snapshot_info["total_info_crypto"] = len(self.available_crypto)
-        self.snapshot_info["ids_available_info"] = self.available_crypto
-        self.write_snapshot_info(self.snapshot_info)
-
-        # Step 7: Save as Parquet
+        # Step 6: Save as Parquet
         self.save_parquet(df, filename="crypto_info")
         self.log(f"DataFrame saved with {len(df)} rows.")
 

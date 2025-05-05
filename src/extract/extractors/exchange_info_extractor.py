@@ -35,7 +35,7 @@ class ExchangeInfoExtractor(BaseExtractor):
         Returns :
         - list: List of exchange IDs previously fetched from /exchange/map
         """
-        path = self.PROJECT_ROOT / "src/api_clients/exchange_map/snapshot_info.jsonl"
+        path = self.PROJECT_ROOT / "metadata/extract/exchange_map/snapshot_info.jsonl"
         try:
             with open(path, "r", encoding="utf-8") as f:
                 lines = f.readlines()

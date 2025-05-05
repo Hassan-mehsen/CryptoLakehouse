@@ -68,7 +68,7 @@ class ExchangeAssetsExtractor(BaseExtractor):
         Returns :
         - list: List of exchange IDs previously fetched from /exchange/map
         """
-        path = self.PROJECT_ROOT / "src/api_clients/exchange_map/snapshot_info.jsonl"
+        path = self.PROJECT_ROOT / "metadata/extract/exchange_map/snapshot_info.jsonl"
         try:
             with open(path, "r", encoding="utf-8") as f:
                 lines = f.readlines()
@@ -132,6 +132,10 @@ class ExchangeAssetsExtractor(BaseExtractor):
                         yield (ex_id, response)
                     else:
                         self.log(f"Exchange {ex_id} has no visible assets (OK status).")
+                        # if an id is in the snapshot, because the last call we had data for this id
+                        # but if in the current call the id return no data we take it as inactive so we added to the faild ids
+                        # because he have not data, the next full scan he we'll be tested
+                        failed_ids.append(ex_id)
                     break  # Success or business case -> exit the retry loop
 
                 else:

@@ -51,7 +51,7 @@ class CryptoCategoryExtractor(BaseExtractor):
             List[str]: List of category IDs to be fetched from the `/category` endpoint.
         """
 
-        crypto_categories_path = self.PROJECT_ROOT / "src/api_clients/crypto_categories/snapshot_info.jsonl"
+        crypto_categories_path = self.PROJECT_ROOT / "metadata/extract/crypto_categories/snapshot_info.jsonl"
 
         # Load last crypto categories snapshot
         try:

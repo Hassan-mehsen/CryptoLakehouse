@@ -21,9 +21,10 @@ class ExchangeMapExtractor(BaseExtractor):
         self.exchanges_id = []
         self.is_updated = False
         self.snapshot_info = {
-            "exchange_ids": None,
-            "total_count": None,
             "source_endpoint": "/v1/exchange/map",
+            "total_count": None,
+            "df_records": None,
+            "exchange_ids": None,
         }
         self.params = {"start": "1", "limit": "5000"}
         self.MAX_RETRIES = 3  # retry in case of API failures
@@ -143,7 +144,7 @@ class ExchangeMapExtractor(BaseExtractor):
         # Step 4: Add timestamp and write snapshot
         df_clean["date_snapshot"] = self.df_snapshot_date
         self.log(f"Snapshot timestamp: {self.df_snapshot_date}")
-        self.snapshot_info["records_fetched"] = len(df_clean)
+        self.snapshot_info["df_records"] = len(df_clean)
         self.write_snapshot_info(self.snapshot_info)
 
         # Step 5: Save Parquet file

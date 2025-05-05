@@ -54,7 +54,7 @@ class BaseExtractor(ABC):
         self.PROJECT_ROOT = Path(__file__).resolve().parents[2]
         self.output_dir = self.PROJECT_ROOT / "data/bronze" / output_dir
         self.log_path = self.PROJECT_ROOT / "logs" / "extract.log"
-        self.snapshot_info_path = self.PROJECT_ROOT / f"src/api_clients/{self.name.lower()}/snapshot_info.jsonl"
+        self.snapshot_info_path = self.PROJECT_ROOT / f"metadata/extract/{self.name.lower()}/snapshot_info.jsonl"
 
         # Create parent directories for snapshot and output paths if they don't exist
         self.snapshot_info_path.parent.mkdir(parents=True, exist_ok=True)
