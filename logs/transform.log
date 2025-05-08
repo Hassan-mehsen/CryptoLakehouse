@@ -1,0 +1,62 @@
+"Implemented full ExchangeTransformer pipeline with logging & metadata"
+
+"- Added support for transforming and writing:"
+  "- dim_exchange_id"
+  "- dim_exchange_info (with broadcasted KPIs)"
+  "- dim_exchange_map (from broadcasted info)"
+  "- fact_exchange_assets (enriched with KPIs)"
+"- Integrated structured logging and detailed schema tracing"
+"- Enabled fault-tolerant processing and metadata tracking for each step"
+"- Verified end-to-end success with 4 Delta tables built and written"
+==================================================
+           Running ExchangeTransformer            
+==================================================
+
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Processing exchange_id... 
+
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Found 1 parquet file(s) in exchange_map_data (limit=1)
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Reading latest exchange_map snapshot: exchange_map-2025-05-06_19-15-35.parquet
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] [Cleaned dim_exchange_id] Row count: 814, Schema: struct<name:string,is_active:boolean,exchange_id:int>
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Writing Delta file to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/exchange/dim_exchange_id (mode=overwrite)
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Write successful in mode overwrite to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/exchange/dim_exchange_id
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] dim_exchange_id table successfully built and written.
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/exchange/dim_exchange_id.jsonl
+
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Processing exchange_info... 
+
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Found 1 parquet file(s) in exchange_info_data (limit=1)
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Reading latest exchange_info snapshot: exchange_info-2025-05-05_20-09-41.parquet
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Successfully loaded exchange_info raw DataFrame
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Preparing dim_exchange_info DataFrame...
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] [Cleaned dim_exchange_info] Row count: 813, Schema: struct<exchange_id:int,slug:string,date_launched:timestamp,description:string,logo_url:string,website_url:string,twitter_url:string,fee_url:string,blog_url:string,fiats:array<string>>
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Preparing broadcasted DataFrame for other tables...
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] [Cleaned broadcast_df] Row count: 813, Schema: struct<exchange_id:int,weekly_visits:int,spot_volume_usd:double,maker_fee:float,taker_fee:float,date_snapshot:timestamp>
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Writing Delta file to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/exchange/dim_exchange_info (mode=overwrite)
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Write successful in mode overwrite to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/exchange/dim_exchange_info
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] dim_exchange_info table successfully built and written.
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/exchange/dim_exchange_info.jsonl
+
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Processing exchange_map...
+
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Preparing dim_exchange_map DataFrame
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] [Cleaned dim_exchange_map] Row count: 813, Schema: struct<exchange_id:int,weekly_visits:int,maker_fee:float,taker_fee:float,date_snapshot:timestamp>
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Writing Delta file to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/exchange/dim_exchange_map (mode=append)
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Write successful in mode append to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/exchange/dim_exchange_map
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] dim_exchange_map table successfully built and written.
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/exchange/dim_exchange_map.jsonl
+
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Processing exchange_assets
+
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Found 1 parquet file(s) in exchange_assets_data (limit=1)
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Reading latest exchange_assets snapshot: exchange_assets-2025-05-03_21-50-39.parquet
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Successfully loaded exchange_assets raw DataFrame
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Preparing fact_exchange_assets DataFrame...
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] [Cleaned fact_exchange_assets] Row count: 3837, Schema: struct<exchange_id:int,spot_volume_usd:double,date_snapshot:timestamp,blockchain_symbol:string,blockchain_name:string,wallet_address:string,crypto_id:int,balance:double,currency_price_usd:double,total_usd_value:double,wallet_weight:double>
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Writing Delta file to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/exchange/fact_exchange_assets (mode=append)
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Write successful in mode append to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/exchange/fact_exchange_assets
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] fact_exchange_assets table successfully built and written.
+[2025-05-07 23:46:29] [TRANSFORM] [EXCHANGETRANSFORMER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/exchange/fact_exchange_assets.jsonl
+
+==================================================
+             End ExchangeTransformer              
+==================================================
