@@ -1,7 +1,9 @@
+from typing import List, Optional, Callable, Tuple
 from pyspark.sql import SparkSession, DataFrame
 from datetime import datetime, timezone
 from abc import ABC, abstractmethod
 from pathlib import Path
+import json
 
 
 class BaseTransformer(ABC):
@@ -9,16 +11,38 @@ class BaseTransformer(ABC):
     Abstract base class for Spark transformation modules (one per business domain).
 
     Responsibilities:
-    - Receives a domain-specific SparkSession
-    - Provides structured and centralized logging to 'logs/transform.log'
-    - Exposes helper methods for:
-        - Logging events and transformation stages
-        - Reading input data from the bronze layer (Parquet)
-        - Writing output data to the silver layer (Delta Lake)
-        - Inspecting DataFrame shape and schema
-    - Encourages traceability by logging DataFrame info before and after transformations
-    - Enforces a standard .run() method to be implemented by subclasses
+    - Provides a standardized framework for domain-specific transformers (e.g., Exchange, Crypto, etc.)
+    - Accepts a SparkSession scoped to the pipeline context
+    - Defines logging utilities for lifecycle events, errors, and DataFrame stats
+    - Tracks structured transformation metadata (e.g., table name, snapshot source, row counts)
+
+    Exposed helper methods include:
+    - Structured logging to `logs/transform.log`
+    - Reading raw input from the bronze layer (Parquet)
+    - Writing cleaned output to the silver layer (Delta Lake), with schema evolution support
+    - Inspecting DataFrame row count and schema for traceability
+    - Discovering latest input snapshot files
+    - Persisting transformation metadata in JSONL format (per table and run)
+    - Centralizing the run logic for each table via `_run_build_step()`:
+        * Orchestrates: prepare -> write -> log -> metadata
+        * Ensures consistent ETL patterns across all table builds
+
+    Design principles:
+    - Enforces a standard `.run()` method to be implemented by subclasses
+    - Favors modularity, reusability, and robustness
+    - Minimizes boilerplate code for each new transformation
+
+    Typical usage:
+    - Subclassed by each domain transformer (e.g. `ExchangeTransformer`)
     """
+
+    # Maps transformer class names to their corresponding domain folder names
+    DOMAIN_NAME_MAP = {
+        "ExchangeTransformer": "exchange",
+        "CryptoTransformer": "crypto",
+        "FearAndGreedTransformer": "fear_and_greed",
+        "GlobalMetricsTransformer": "global_metrics",
+    }
 
     def __init__(self, spark: SparkSession):
         # --------------------------------------------------------------------
@@ -29,7 +53,8 @@ class BaseTransformer(ABC):
         self.name = self.__class__.__name__
 
         # Unified UTC timestamp for all log lines of this transformer instance
-        self.timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        self.str_timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        self.timestamp = datetime.now(timezone.utc).isoformat()
 
         # Dynamically resolves the root of the project
         self.project_root = Path(__file__).resolve().parents[3]
@@ -41,6 +66,30 @@ class BaseTransformer(ABC):
         self.raw_data_path = self.project_root / "data/bronze"
         self.silver_data_path = self.project_root / "data/silver"
 
+        # Domain folder name used in silver layer paths
+        self.domain = self.DOMAIN_NAME_MAP.get(self.name, self.name.replace("Transformer", "").lower())
+
+        # Path to store transformation metadata files for this domain
+        # (e.g., metadata/transform/exchange/) — created if not existing
+        self.metadata_dir = self.project_root / "metadata" / "transform" / self.domain
+        self.metadata_dir.mkdir(parents=True, exist_ok=True)
+
+        # Dictionary to store transformation metadata.
+        # Useful for tracking processing status, data lineage, and audit information.
+        self.metadata = {
+            "table": None,
+            "domain": self.domain,
+            "last_status": "raw",
+            "source_snapshot": None,
+            "current_status": None,
+            "status": None,
+            "record_count": None,
+            "started_at": None,
+            "ended_at": None,
+            "duration_seconds": None,
+            "notes": None,
+        }
+
     # --------------------------------------------------------------------
     #                           Logging Methods
     # --------------------------------------------------------------------
@@ -48,21 +97,22 @@ class BaseTransformer(ABC):
     def log(self, message: str = "", style: str = None) -> None:
         """
         Logs a message to the shared transform.log file with timestamp and transformer name.
-
         Args:
             message (str): The log message to write.
             style (str): Optional. If provided, this exact string will be logged instead of the formatted message.
         """
 
-        formatted = f"[{self.timestamp}] [TRANSFORM] [{self.name.upper()}] {message}"
+        formatted = f"[{self.str_timestamp}] [TRANSFORM] [{self.name.upper()}] {message}"
+        try:
+            with open(self.log_path, "a") as f:
+                f.write(style if style else formatted + "\n")
 
-        with open(self.log_path, "a") as f:
-            f.write(style if style else formatted + "\n")
+        except Exception as e:
+            print(f"[LOGGING FAILURE] Could not write to {self.log_path} → {e}")
 
     def log_section(self, title: str, width: int = 50) -> None:
         """
         Logs a visual separator block for readability in logs.
-
         Args:
             title (str): Centered title of the section.
             width (int): Width of the log block (default: 50).
@@ -75,6 +125,7 @@ class BaseTransformer(ABC):
     def log_dataframe_info(self, df: DataFrame, label: str = "") -> None:
         """
         Logs summary statistics for a DataFrame, including row count and schema.
+        Logs any error encountered during inspection.
 
         Recommended usage:
         - Before and after each transformation step
@@ -85,62 +136,126 @@ class BaseTransformer(ABC):
             df (DataFrame): The Spark DataFrame to inspect.
             label (str): Optional label to contextualize the log (e.g., 'Before filtering', 'After join').
         """
+        try:
+            count = df.count()
+            schema = df.schema.simpleString()
+            self.log(f"[{label}] Row count: {count}, Schema: {schema}")
 
-        count = df.count()
-        schema = df.schema.simpleString()
-
-        self.log(f"[{label}] Row count: {count}, Schema: {schema}")
+        except Exception as e:
+            self.log(f"[ERROR] Failed to inspect DataFrame [{label}] → {e}")
 
     # --------------------------------------------------------------------
     #                       I/O Helper Methods
     # --------------------------------------------------------------------
 
-    def read_parquet(self, relative_path: str) -> DataFrame:
+    def find_latest_data_files(self, relative_folder: str, limit: int = 1) -> Optional[List[Path]]:
         """
-        Reads a Parquet file from the raw data (bronze) layer.
-
+        Returns a list of Path objects pointing to the latest snapshot data files
+        (sorted by descending order of filename) in a specific raw data subfolder.
+        Logs any error encountered.
         Args:
-            relative_path (str): Subpath to the Parquet file relative to bronze folder.
+            relative_folder (str): Subdirectory inside `raw_data_path` where to look.
+            limit (int): Number of most recent files to return.
 
         Returns:
-            DataFrame: The loaded Spark DataFrame.
+            List[Path]: List of Path objects, from newest to oldest.
         """
+        try:
+            folder_path = self.raw_data_path / relative_folder
+            all_files = sorted(folder_path.glob("*.parquet"), reverse=True)
+            latest_files = all_files[:limit]
 
-        full_path = self.raw_data_path / relative_path
-        self.log(f"Reading Parquet file from: {full_path}")
+            self.log(f"Found {len(latest_files)} parquet file(s) in {relative_folder} (limit={limit})")
+            return latest_files
 
-        return self.spark.read.parquet(str(full_path))
+        except Exception as e:
+            self.log(f"[ERROR] Failed to list files in {relative_folder} -> {e}")
+            return None
 
-    def write_delta(self, df: DataFrame, relative_path: str, mode: str = "overwrite") -> None:
+    def write_delta(self, df: DataFrame, relative_path: str, mode: str = "overwrite", partition_by: Optional[List[str]] = None) -> str:
         """
-        Writes a DataFrame to the Delta format in the silver layer.
+        Writes a DataFrame to the Delta Lake format in the silver layer.
+
+        Automatically logs the write operation and captures any error encountered.
+
+        Supports schema evolution which allows the schema of the existing
+        Delta table to be overwritten or appended during write operations.
+        Optionally allows partitioning by one or more columns.
 
         Args:
-            df (DataFrame): The DataFrame to write.
-            relative_path (str): Subpath to the silver output directory.
-            mode (str): Spark write mode. Default is "overwrite".
+            df (DataFrame): The Spark DataFrame to write.
+            relative_path (str): Name of the Delta table folder inside the domain (e.g., "dim_exchange_id").
+                                Full path resolved as: silver/domain/relative_path/
+            mode (str): Spark write mode ("overwrite", "append", "ignore", or "error"). Default is "overwrite".
+            partition_by (Optional[List[str]]): List of column names to partition the Delta table by (if any).
+
+        Returns:
+            str: "ok" if write successful, "ko" otherwise.
         """
+        full_path = self.silver_data_path / self.domain / relative_path
 
-        full_path = self.silver_data_path / relative_path
-        self.log(f"Writing Delta file to: {full_path} (mode={mode})")
+        try:
+            self.log(f"Writing Delta file to: {full_path} (mode={mode})")
 
-        df.write.format("delta").mode(mode).save(str(full_path))
+            writer = df.write.format("delta").mode(mode)
+            if mode == "overwrite":
+                writer = writer.option("overwriteSchema", "true")
+            elif mode == "append":
+                writer = writer.option("mergeSchema", "true")
 
-    def read_delta(self, relative_path: str) -> DataFrame:
+            if partition_by:
+                writer = writer.partitionBy(*partition_by)
+
+            writer.save(str(full_path))
+
+            self.log(f"Write successful in mode {mode} to: {full_path}")
+            return "ok"
+
+        except Exception as e:
+            self.log(f"[ERROR] Failed to write Delta file to {full_path} → {e}")
+            return "ko"
+
+    def read_delta(self, relative_path: str) -> Optional[DataFrame]:
         """
         Reads a Delta table from the silver layer.
-
+        Logs any read error encountered.
         Args:
             relative_path (str): Subpath to the Delta table in silver layer.
 
         Returns:
             DataFrame: The loaded Spark DataFrame.
         """
-
         full_path = self.silver_data_path / relative_path
-        self.log(f"Reading Delta table from: {full_path}")
 
-        return self.spark.read.format("delta").load(str(full_path))
+        try:
+            self.log(f"Reading Delta table from: {full_path}")
+            return self.spark.read.format("delta").load(str(full_path))
+
+        except Exception as e:
+            self.log(f"[ERROR] Failed to read Delta table from {full_path} → {e}")
+            return None
+
+    def save_metadata(self, table_name: str, metadata: dict) -> None:
+        """
+        Saves metadata as a JSON file inside the transform domain folder.
+
+        The file will be written to: metadata/transform/domain/table_name.json
+
+        Args:
+            table_name (str): Logical table name (used as filename).
+            metadata (dict): Dictionary containing metadata info to be saved.
+        """
+
+        file_path = self.metadata_dir / f"{table_name}.jsonl"
+
+        try:
+            with open(file_path, "a", encoding="utf-8") as f:
+                json.dump(metadata, f, indent=2)
+                f.write("\n")
+            self.log(f"Metadata saved to {file_path}")
+
+        except Exception as e:
+            self.log(f"[ERROR] Failed to write metadata to {file_path} → {e}")
 
     # --------------------------------------------------------------------
     #                      Abstract Execution Method
@@ -154,3 +269,75 @@ class BaseTransformer(ABC):
         Must be implemented by each concrete transformer class.
         """
         pass
+
+    # --------------------------------------------------------------------
+    #                 Internal Execution Helpers (Build Steps)
+    # --------------------------------------------------------------------
+
+    def _run_build_step(
+        self,
+        table_name: str,
+        prepare_func: Callable[[], Optional[Tuple[DataFrame, str]]],
+        relative_path: str,
+        mode: str = "overwrite",
+    ):
+        """
+        Executes a full transformation step for a given table.
+
+        This method:
+        - Calls a preparation function returning (DataFrame, source)
+        - Skips write if the DataFrame is None
+        - Writes the DataFrame to Delta Lake in the given mode
+        - Updates and saves transformation metadata (duration, count, status)
+        - Logs each stage of the build process
+
+        Args:
+            table_name (str): Logical name of the table (used in logs/metadata)
+            prepare_func (Callable): Function returning (DataFrame, source_path)
+            relative_path (str): Output path inside the silver layer
+            mode (str): Write mode ("overwrite", "append", etc.)
+        """
+
+        started_at = self.timestamp
+        df, source = prepare_func()
+
+        self.metadata.update(
+            {
+                "table": table_name,
+                "source_snapshot": "from broadcasted_exchange_info_df" if table_name == "dim_exchange_map" else str(source),
+                "started_at": started_at,
+            }
+        )
+
+        if df is None:
+            self.log(f"No data to build {table_name} — skipping write.")
+            self.metadata.update(
+                {
+                    "status": "skipped",
+                    "notes": "No DataFrame returned.",
+                    "current_status": "raw",
+                }
+            )
+            self.save_metadata(table_name, self.metadata)
+            return
+
+        status = self.write_delta(df=df, relative_path=relative_path, mode=mode)
+        ended_at = self.timestamp
+
+        self.metadata.update(
+            {
+                "ended_at": ended_at,
+                "duration_seconds": (datetime.fromisoformat(ended_at) - datetime.fromisoformat(started_at)).total_seconds(),
+                "record_count": df.count(),
+                "status": "success" if status == "ok" else "failed",
+                "current_status": "transformed" if status == "ok" else "raw",
+                "notes": "ready to load step",
+            }
+        )
+
+        if status == "ok":
+            self.log(f"{table_name} table successfully built and written.")
+        else:
+            self.log(f"[ERROR] Failed to write {table_name} table.")
+
+        self.save_metadata(table_name, self.metadata)
