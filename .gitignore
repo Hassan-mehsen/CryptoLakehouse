@@ -1,5 +1,5 @@
 # ============================================
-# ⚠️ IMPORTANT — DO NOT MODIFY THIS FILE UNLESS NECESSARY
+# IMPORTANT — DO NOT MODIFY THIS FILE UNLESS NECESSARY
 #
 # This .gitignore is carefully configured to:
 # - Prevent versioning of sensitive files (.env)
@@ -13,10 +13,17 @@
 # Ignore .env file
 .env
 
-# Ignorer tous les scripts et sorties de test dans runners sauf __init__.py et README.md (structure + documentation)
+# Ignore testing logs
+logs/test.log
+
+# Ignore all test scripts and outputs in src/extract/runners/ except __init__.py and README.md (structure + documentation).
 src/extract/runners/*
 !src/extract/runners/__init__.py
 !src/extract/runners/README.md
+
+# Ignore all test scripts and outputs in src/extract/transform/ except __init__.py
+src/transform/runners/*
+!src/transform/runners/__init__.py
 
 # Ignore tmp folder
 tmp/
@@ -24,17 +31,19 @@ tmp/
 # Ignore pycache folder's
 src/extract/__pycache__/
 src/extract/extractors/__pycache__/
+src/transform/__pycache__
+src/transform/base/__pycache__
+src/transform/transformers/__pycache__
 
 # Ignore all parquet files in bronze by default
-data/bronze/*.parquet
-data/bronze/exchange_map_data/*.parquet
-data/bronze/exchange_info_data/*.parquet
-data/bronze/exchange_assets_data/*.parquet
-data/bronze/crypto_map_data/*.parquet
-data/bronze/crypto_info_data/*.parquet
-data/bronze/crypto_listings_latest_data/*.parquet
-data/bronze/crypto_categories/*.parquet
-
+data/bronze/**/*.parquet
 # EXCEPT manually selected reference files
 #!data/bronze/exchange_info-latest.parquet
 #!data/bronze/exchange_map-latest.parquet
+
+
+# Ignore all Delta Lake tables and Parquet outputs in silver layer
+data/silver/**/_delta_log/*
+data/silver/**/*.parquet
+data/silver/**/*.snappy.parquet
+data/silver/**/*.crc
