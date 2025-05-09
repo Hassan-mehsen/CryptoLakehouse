@@ -1,12 +1,11 @@
 from typing import List, Optional, Callable, Tuple
 from pyspark.sql import SparkSession, DataFrame
 from datetime import datetime, timezone
-from abc import ABC, abstractmethod
 from pathlib import Path
 import json
 
 
-class BaseTransformer(ABC):
+class BaseTransformer():
     """
     Abstract base class for Spark transformation modules (one per business domain).
 
@@ -14,27 +13,29 @@ class BaseTransformer(ABC):
     - Provides a standardized framework for domain-specific transformers (e.g., Exchange, Crypto, etc.)
     - Accepts a SparkSession scoped to the pipeline context
     - Defines logging utilities for lifecycle events, errors, and DataFrame stats
-    - Tracks structured transformation metadata (e.g., table name, snapshot source, row counts)
+    - Tracks structured transformation metadata (e.g., table name, snapshot source, row counts, timestamps)
 
     Exposed helper methods include:
     - Structured logging to `logs/transform.log`
     - Reading raw input from the bronze layer (Parquet)
-    - Writing cleaned output to the silver layer (Delta Lake), with schema evolution support
+    - Writing cleaned output to the silver layer (Delta Lake), with optional partitioning and schema evolution
     - Inspecting DataFrame row count and schema for traceability
-    - Discovering latest input snapshot files
-    - Persisting transformation metadata in JSONL format (per table and run)
+    - Discovering and retrieving latest input snapshot files
+    - Persisting and reading transformation metadata in JSONL format
+    - Determining whether a transformation is necessary via `should_transform()` based on snapshot freshness
     - Centralizing the run logic for each table via `_run_build_step()`:
         * Orchestrates: prepare -> write -> log -> metadata
         * Ensures consistent ETL patterns across all table builds
 
     Design principles:
     - Enforces a standard `.run()` method to be implemented by subclasses
-    - Favors modularity, reusability, and robustness
-    - Minimizes boilerplate code for each new transformation
+    - Favors modularity, reusability, observability, and robustness
+    - Minimizes boilerplate code for implementing new transformation steps
 
     Typical usage:
-    - Subclassed by each domain transformer (e.g. `ExchangeTransformer`)
+    - Subclassed by each domain transformer (e.g. `ExchangeTransformer`, `CryptoTransformer`)
     """
+
 
     # Maps transformer class names to their corresponding domain folder names
     DOMAIN_NAME_MAP = {
@@ -77,17 +78,17 @@ class BaseTransformer(ABC):
         # Dictionary to store transformation metadata.
         # Useful for tracking processing status, data lineage, and audit information.
         self.metadata = {
-            "table": None,
+            "table": "-",
             "domain": self.domain,
             "last_status": "raw",
-            "source_snapshot": None,
-            "current_status": None,
-            "status": None,
-            "record_count": None,
-            "started_at": None,
-            "ended_at": None,
-            "duration_seconds": None,
-            "notes": None,
+            "source_snapshot": "-",
+            "current_status": "-",
+            "status": "-",
+            "record_count": "-",
+            "started_at": "-",
+            "ended_at": "-",
+            "duration_seconds": "-",
+            "notes": "-",
         }
 
     # --------------------------------------------------------------------
@@ -104,8 +105,9 @@ class BaseTransformer(ABC):
 
         formatted = f"[{self.str_timestamp}] [TRANSFORM] [{self.name.upper()}] {message}"
         try:
+            msg = style if style else formatted
             with open(self.log_path, "a") as f:
-                f.write(style if style else formatted + "\n")
+                f.write(msg + "\n")
 
         except Exception as e:
             print(f"[LOGGING FAILURE] Could not write to {self.log_path} → {e}")
@@ -172,7 +174,9 @@ class BaseTransformer(ABC):
             self.log(f"[ERROR] Failed to list files in {relative_folder} -> {e}")
             return None
 
-    def write_delta(self, df: DataFrame, relative_path: str, mode: str = "overwrite", partition_by: Optional[List[str]] = None) -> str:
+    def write_delta(
+        self, df: DataFrame, relative_path: str, mode: str = "overwrite", partition_by: Optional[List[str]] = None
+    ) -> str:
         """
         Writes a DataFrame to the Delta Lake format in the silver layer.
 
@@ -212,7 +216,7 @@ class BaseTransformer(ABC):
             return "ok"
 
         except Exception as e:
-            self.log(f"[ERROR] Failed to write Delta file to {full_path} → {e}")
+            self.log(f"[ERROR] Failed to write Delta file to {full_path} -> {e}")
             return "ko"
 
     def read_delta(self, relative_path: str) -> Optional[DataFrame]:
@@ -250,25 +254,43 @@ class BaseTransformer(ABC):
 
         try:
             with open(file_path, "a", encoding="utf-8") as f:
-                json.dump(metadata, f, indent=2)
+                json.dump(metadata, f)
                 f.write("\n")
             self.log(f"Metadata saved to {file_path}")
 
         except Exception as e:
-            self.log(f"[ERROR] Failed to write metadata to {file_path} → {e}")
+            self.log(f"[ERROR] Failed to write metadata to {file_path} -> {e}")
 
-    # --------------------------------------------------------------------
-    #                      Abstract Execution Method
-    # --------------------------------------------------------------------
-
-    @abstractmethod
-    def run(self) -> None:
+    def read_last_metadata(self, table_name: str) -> Optional[dict]:
         """
-        Main entrypoint to run the full transformation process for a domain.
+        Reads the latest metadata entry for a given table.
 
-        Must be implemented by each concrete transformer class.
+        This method retrieves the last line of the corresponding metadata JSONL file
+        (e.g. `metadata/transform/<domain>/<table_name>.jsonl`) and returns it as a dictionary.
+
+        Args:
+            table_name (str): Logical table name used to locate the metadata file.
+
+        Returns:
+            Optional[dict]: Last metadata entry as a dictionary, or None if not found or file is empty.
         """
-        pass
+        metadata_path = self.metadata_dir / f"{table_name}.jsonl"
+
+        if not metadata_path.exists():
+            self.log(f"[INFO] No existing metadata for {table_name}")
+            return None
+        try:
+            with open(metadata_path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+                for line in reversed(lines):
+                    if line.strip():
+                        snapshot = json.loads(line.strip())
+                        self.log(f"Last snapshot loaded from {metadata_path}")
+                        return snapshot
+
+        except Exception as e:
+            self.log(f"[ERROR] Failed to parse metadata for {table_name} → {e}")
+            return None
 
     # --------------------------------------------------------------------
     #                 Internal Execution Helpers (Build Steps)
@@ -304,7 +326,9 @@ class BaseTransformer(ABC):
         self.metadata.update(
             {
                 "table": table_name,
-                "source_snapshot": "from broadcasted_exchange_info_df" if table_name == "dim_exchange_map" else str(source),
+                "source_snapshot": (
+                    "from broadcasted_exchange_info_df" if table_name == "dim_exchange_map" else str(source)
+                ),
                 "started_at": started_at,
             }
         )
@@ -327,11 +351,13 @@ class BaseTransformer(ABC):
         self.metadata.update(
             {
                 "ended_at": ended_at,
-                "duration_seconds": (datetime.fromisoformat(ended_at) - datetime.fromisoformat(started_at)).total_seconds(),
+                "duration_seconds": (
+                    datetime.fromisoformat(ended_at) - datetime.fromisoformat(started_at)
+                ).total_seconds(),
                 "record_count": df.count(),
                 "status": "success" if status == "ok" else "failed",
                 "current_status": "transformed" if status == "ok" else "raw",
-                "notes": "ready to load step",
+                "notes": "ready to load step" if status == "ok" else "re-transform nedeed",
             }
         )
 
@@ -339,5 +365,77 @@ class BaseTransformer(ABC):
             self.log(f"{table_name} table successfully built and written.")
         else:
             self.log(f"[ERROR] Failed to write {table_name} table.")
+            return
 
-        self.save_metadata(table_name, self.metadata)
+        self.save_metadata(str(table_name), self.metadata)
+
+    def should_transform(
+        self, 
+        table_name: str, 
+        latest_snapshot_path: Path, 
+        force: bool = False, 
+        daily_comparison: bool = True
+    ) -> bool:
+        """
+        Determines whether a table should be transformed based on the freshness of its latest snapshot.
+
+        This method compares the timestamp extracted from the latest .parquet snapshot filename
+        (format: `name-YYYY-MM-DD_HH-MM-SS.parquet`) with the `ended_at` timestamp recorded in the
+        table's most recent transformation metadata.
+
+        If `daily_comparison` is enabled, only the date parts (YYYY-MM-DD) are compared.
+        If `force` is True, the transformation proceeds regardless of timestamps.
+
+        Args:
+            table_name (str): Logical name of the table to check.
+            latest_snapshot_path (Path): Path to the latest snapshot (.parquet file).
+            force (bool): If True, forces the transformation to run regardless of metadata.
+            daily_comparison (bool): If True, compares only dates (not full timestamps).
+
+        Returns:
+            bool: True if transformation should proceed, False otherwise.
+        """
+        if force : 
+            return True
+
+        try:
+            # Extract timestamp from file name like: exchange_map-2025-05-07_12-34-56.parquet
+            ts_str = latest_snapshot_path.stem.split("-", maxsplit=1)  # ['exchange_map'  '2025-05-07_12-34-56']
+            date_part = ts_str[1].split("_", maxsplit=1)[0]  # '2025-05-07'
+            time_part = ts_str[1].split("_", maxsplit=1)[1].replace("-", ":")  # '12:34:56'
+            snapshot_str = f"{date_part} {time_part}"  # '2025-05-07 12:34:56'
+
+            snapshot_dt = datetime.strptime(snapshot_str, "%Y-%m-%d %H:%M:%S")
+
+            if daily_comparison:
+                new_snapshot = snapshot_dt.date()
+            else:
+                new_snapshot = snapshot_dt
+
+        except Exception as e:
+            self.log(f"[ERROR] Failed to parse timestamp from file name {latest_snapshot_path.name} -> {e}")
+            return True  # Safe default
+
+        # Reading last trasnformation time from the metadata
+        last_metadata = self.read_last_metadata(table_name)
+        last_ended_at = last_metadata.get("ended_at") if last_metadata else None
+
+        if not last_ended_at:
+            self.log(f"[INFO] No prior ended_at found for {table_name}. Proceeding.")
+            return True
+
+        try:
+            last_ts = datetime.fromisoformat(last_ended_at).replace(tzinfo=None)
+
+            if daily_comparison:
+                last_value = last_ts.date()
+
+            else:
+                last_value = last_ts
+
+            self.log(f"Last .parquet record at : {new_snapshot} and last transformed at {last_value}")
+            return new_snapshot > last_value
+
+        except Exception as e:
+            self.log(f"[ERROR] Failed to parse ended_at date from metadata → {e}")
+            return True
