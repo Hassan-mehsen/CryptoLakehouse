@@ -60,3 +60,33 @@
 ==================================================
              End ExchangeTransformer              
 ==================================================
+
+"ExchangeTransformer -> Snapshot freshness check enabled"
+"Skips transformation if snapshot already processed"
+"Safe fallback to transformation if no metadata found"
+==================================================
+           Running ExchangeTransformer            
+==================================================
+[2025-05-09 16:30:19] [TRANSFORM] [EXCHANGETRANSFORMER] Found 1 parquet file(s) in exchange_map_data (limit=1) 
+[2025-05-09 16:30:19] [TRANSFORM] [EXCHANGETRANSFORMER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/exchange/dim_exchange_id.jsonl 
+[2025-05-09 16:30:19] [TRANSFORM] [EXCHANGETRANSFORMER] Last .parquet record at : 2025-05-06 and last transformed at 2025-05-09 
+[2025-05-09 16:30:19] [TRANSFORM] [EXCHANGETRANSFORMER] dim_exchange_id is up to date. Skipping transformation. 
+[2025-05-09 16:30:19] [TRANSFORM] [EXCHANGETRANSFORMER] Found 1 parquet file(s) in exchange_info_data (limit=1) 
+[2025-05-09 16:30:19] [TRANSFORM] [EXCHANGETRANSFORMER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/exchange/dim_exchange_info.jsonl 
+[2025-05-09 16:30:19] [TRANSFORM] [EXCHANGETRANSFORMER] Last .parquet record at : 2025-05-05 and last transformed at 2025-05-09 
+[2025-05-09 16:30:19] [TRANSFORM] [EXCHANGETRANSFORMER] dim_exchange_info is up to date. Skipping transformation. 
+
+[2025-05-09 16:30:19] [TRANSFORM] [EXCHANGETRANSFORMER] Processing exchange_map...
+ 
+[2025-05-09 16:30:19] [TRANSFORM] [EXCHANGETRANSFORMER] Preparing dim_exchange_map DataFrame 
+[2025-05-09 16:30:19] [TRANSFORM] [EXCHANGETRANSFORMER] [ERROR] broadcasted_exchange_info_df is not available. Please run __prepare_dim_exchange_info_df() first. 
+[2025-05-09 16:30:19] [TRANSFORM] [EXCHANGETRANSFORMER] No data to build dim_exchange_map — skipping write. 
+[2025-05-09 16:30:19] [TRANSFORM] [EXCHANGETRANSFORMER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/exchange/dim_exchange_map.jsonl 
+[2025-05-09 16:30:19] [TRANSFORM] [EXCHANGETRANSFORMER] Found 1 parquet file(s) in exchange_assets_data (limit=1) 
+[2025-05-09 16:30:19] [TRANSFORM] [EXCHANGETRANSFORMER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/exchange/fact_exchange_assets.jsonl 
+[2025-05-09 16:30:19] [TRANSFORM] [EXCHANGETRANSFORMER] Last .parquet record at : 2025-05-03 21:50:39 and last transformed at 2025-05-09 14:00:39.953811 
+[2025-05-09 16:30:19] [TRANSFORM] [EXCHANGETRANSFORMER] fact_exchange_assets is up to date. Skipping transformation. 
+
+==================================================
+             End ExchangeTransformer              
+==================================================
