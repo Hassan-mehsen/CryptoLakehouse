@@ -40,52 +40,99 @@ class ExchangeTransformer(BaseTransformer):
 
     def __init__(self, spark: SparkSession):
         super().__init__(spark)
-    
+
         self.broadcasted_exchange_info_df = None
+        self.broadcasted_exchange_id_df = None
+
+    # --------------------------------------------------------------------
+    #                          Public entrypoints
+    # --------------------------------------------------------------------
 
     def build_exchange_id_dim(self) -> None:
         """
         Triggers the transformation pipeline for the dim_exchange_id table.
 
-        Delegates to:
-        - `__prepare_dim_exchange_id_df` for reading and cleaning the latest snapshot
-        - `_run_build_step` for write, logging, and metadata tracking
-
-        This is a high-level entrypoint used by the main run() orchestration.
+        This method:
+        - Loads the latest snapshot from the `exchange_map_data` folder
+        - Skips transformation if the snapshot is already processed (via metadata check)
+        - Delegates the preparation to `__prepare_dim_exchange_id_df`
+        - Delegates writing, logging, and metadata to `_run_build_step`
         """
-        self._run_build_step("dim_exchange_id", self.__prepare_dim_exchange_id_df, "dim_exchange_id")
+        snapshot_paths = self.find_latest_data_files("exchange_map_data")
+        if not snapshot_paths:
+            self.log("No snapshot available for dim_exchange_id. Skipping.")
+            return
+
+        latest_snapshot = snapshot_paths[0]
+        if not self.should_transform("dim_exchange_id", latest_snapshot, daily_comparison=True):
+            self.log("dim_exchange_id is up to date. Skipping transformation.")
+            return
+
+        self._run_build_step("dim_exchange_id", lambda: self.__prepare_dim_exchange_id_df(latest_snapshot), "dim_exchange_id")
 
     def build_exchange_info_dim(self) -> None:
         """
-        Orchestrates the transformation of the dim_exchange_info table.
+        Triggers the transformation pipeline for the dim_exchange_info table.
 
-        This high-level method:
-        - Prepares the cleaned exchange info DataFrame
-        - Broadcasts selected fields for reuse
-        - Delegates write and metadata tracking to `_run_build_step`
+        This method:
+        - Loads the latest snapshot from the `exchange_info_data` folder
+        - Skips transformation if the snapshot is already processed (via metadata check)
+        - Delegates the preparation and broadcasting to `__prepare_dim_exchange_info_df`
+        - Delegates writing, logging, and metadata to `_run_build_step`
         """
-        self._run_build_step("dim_exchange_info", self.__prepare_dim_exchange_info_df, "dim_exchange_info")
+        snapshot_paths = self.find_latest_data_files("exchange_info_data")
+        if not snapshot_paths:
+            self.log("No snapshot available for dim_exchange_info. Skipping.")
+            return
+
+        latest_snapshot = snapshot_paths[0]
+        if not self.should_transform("dim_exchange_info", latest_snapshot, daily_comparison=True):
+            self.log("dim_exchange_info is up to date. Skipping transformation.")
+            return
+
+        self._run_build_step(
+            "dim_exchange_info", lambda: self.__prepare_dim_exchange_info_df(latest_snapshot), "dim_exchange_info"
+        )
 
     def build_exchange_map_dim(self) -> None:
         """
-        Coordinates the creation of the dim_exchange_map table.
+        Triggers the transformation pipeline for the dim_exchange_map table.
 
-        Relies on the broadcasted exchange_info data to:
-        - Extract metrics (fees, visits) for each exchange
-        - Delegate writing and metadata to `_run_build_step`
+        This method:
+        - Depends entirely on the broadcasted data from `build_exchange_info_dim`
+        - Does not perform snapshot freshness check, since the broadcasted data is transient
+        - Delegates the preparation to `__prepare_dim_exchange_map_df`
+        - Writes the data in append mode via `_run_build_step`
         """
         self._run_build_step("dim_exchange_map", self.__prepare_dim_exchange_map_df, "dim_exchange_map", mode="append")
 
     def build_exchange_assets_fact(self) -> None:
         """
-        Initiates the transformation for the fact_exchange_assets table.
+        Triggers the transformation pipeline for the fact_exchange_assets table.
 
         This method:
-        - Joins exchange asset data with broadcasted exchange info
-        - Computes derived wallet-level KPIs
-        - Delegates write and metadata logic to `_run_build_step`
+        - Loads the latest snapshot from `exchange_assets_data`
+        - Skips transformation if the snapshot was already processed (checked via metadata timestamp)
+        - Delegates the preparation to `__prepare_exchange_assets_df`
+        - Delegates writing, logging, and metadata tracking to `_run_build_step`
+        - Appends new data to the existing Delta table
         """
-        self._run_build_step("fact_exchange_assets", self.__prepare_exchange_assets_df, "fact_exchange_assets", mode="append")
+        snapshot_paths = self.find_latest_data_files("exchange_assets_data")
+        if not snapshot_paths:
+            self.log("No snapshot available for fact_exchange_assets. Skipping.")
+            return
+
+        latest_snapshot = snapshot_paths[0]
+        if not self.should_transform("fact_exchange_assets", latest_snapshot, daily_comparison=False):
+            self.log("fact_exchange_assets is up to date. Skipping transformation.")
+            return
+
+        self._run_build_step(
+            "fact_exchange_assets",
+            lambda: self.__prepare_exchange_assets_df(latest_snapshot),
+            "fact_exchange_assets",
+            mode="append",
+        )
 
     def run(self):
         """
@@ -110,19 +157,21 @@ class ExchangeTransformer(BaseTransformer):
     #                    Internal Transformation Methods
     # --------------------------------------------------------------------
 
-    def __prepare_dim_exchange_id_df(self) -> Optional[Tuple[DataFrame, str]]:
+    def __prepare_dim_exchange_id_df(self, latest_snapshot: str) -> Optional[Tuple[DataFrame, str]]:
         """
         Prepares the dim_exchange_id table from the latest exchange_map snapshot.
 
-        - Reads the most recent Parquet file from the exchange_map_data folder
-        - Applies a strict schema for validation
-        - Renames and casts fields to match target model
-        - Drops rows with null values in critical columns (exchange_id, name)
-        - Logs the input and output DataFrame stats
+        This method:
+        - Reads and validates the latest Parquet snapshot from 'exchange_map_data'
+        - Extracts and casts stable identity fields: exchange_id and name
+        - Builds a cleaned, deduplicated DataFrame for `dim_exchange_id`
+        - Separately prepares a broadcasted DataFrame (exchange_id, is_active)
+        for enriching `dim_exchange_map`
 
         Returns:
-        Optional[Tuple[DataFrame, str]]: Cleaned DataFrame and path to snapshot,
-        or None if no file or read error occurs.
+            Optional[Tuple[DataFrame, str]]:
+                - Cleaned DataFrame for `dim_exchange_id`
+                - Path to the snapshot used
         """
         self.log(style="\n")
         self.log("Processing exchange_id... \n")
@@ -135,15 +184,8 @@ class ExchangeTransformer(BaseTransformer):
                 StructField("is_active", LongType(), True),
             ]
         )
-
-        # Locate latest snapshot file
-        data_paths = self.find_latest_data_files("exchange_map_data")
-        if not data_paths:
-            self.log("No snapshot found in 'exchange_map_data' folder. Skipping dim_exchange_id transformation.")
-            return None
-
-        latest_snapshot = data_paths[0]
-        self.log(f"Reading latest exchange_map snapshot: {latest_snapshot.name}")
+        #
+        self.log(f"Reading latest exchange_map snapshot: {latest_snapshot}")
 
         # Read with schema
         try:
@@ -152,28 +194,41 @@ class ExchangeTransformer(BaseTransformer):
             self.log(f"[ERROR] Failed to read Parquet file at {latest_snapshot} → {e}")
             return None
 
+        # --- Build dim_exchange_id table ---
         df_cleaned = (
-            df_raw.withColumn("exchange_id", df_raw["id"].cast("int"))
-            .drop("id")
-            .withColumn("is_active", df_raw["is_active"].cast("boolean"))
-            .dropna(subset=["exchange_id", "name"])
+            df_raw.withColumn("exchange_id", df_raw["id"].cast("int")).drop("id", "is_active").dropna(subset=["exchange_id"])
         )
         self.log_dataframe_info(df_cleaned, "Cleaned dim_exchange_id")
 
+        # Build broadcasted version for map (with is_active)
+        broadcast_id_df = (
+            df_raw.withColumn("exchange_id", col("id").cast("int"))
+            .withColumn("is_active", col("is_active").cast("boolean"))
+            .drop("id", "name")
+            .dropna(subset=["exchange_id"])
+        )
+
+        self.log_dataframe_info(broadcast_id_df, "Cleaned broadcast_id_df")
+
+        self.broadcasted_exchange_id_df = broadcast(broadcast_id_df)
+
         return df_cleaned, latest_snapshot
 
-    def __prepare_dim_exchange_info_df(self) -> Optional[Tuple[DataFrame, str]]:
+    def __prepare_dim_exchange_info_df(self, latest_snapshot: str) -> Optional[Tuple[DataFrame, str]]:
         """
-        Reads and processes the latest snapshot of the exchange_info dataset.
+        Prepares the dim_exchange_info table from the latest exchange_info snapshot.
 
-        - Applies a strict schema to the source Parquet file.
-        - Cleans and selects relevant columns for the dim_exchange_info dimension table.
-        - Casts and renames fields to match the data model.
-        - Extracts a subset of columns used in other tables and broadcasts them for join optimization.
+        This method:
+        - Reads and validates the latest Parquet snapshot from 'exchange_info_data'
+        - Extracts and casts descriptive metadata (slug, description, launch date, URLs, fiats)
+        - Constructs the cleaned `dim_exchange_info` table
+        - Builds a separate broadcasted DataFrame (KPIs, snapshot date) for reuse in
+        `dim_exchange_map` and `fact_exchange_assets`
 
         Returns:
-            DataFrame: A cleaned DataFrame ready to be written to silver/dim_exchange_info
-                    or None if no snapshot is found or reading fails.
+            Optional[Tuple[DataFrame, str]]:
+                - Cleaned DataFrame for `dim_exchange_info`
+                - Path to the snapshot used
         """
         self.log(style="\n")
         self.log("Processing exchange_info... \n")
@@ -190,30 +245,17 @@ class ExchangeTransformer(BaseTransformer):
                 StructField("spot_volume_usd", DoubleType(), True),
                 StructField("maker_fee", DoubleType(), True),  # To be cast to Float
                 StructField("taker_fee", DoubleType(), True),  # To be cast to Float
-                StructField(
-                    "urls",
-                    StructType(
-                        [
-                            StructField("blog", ArrayType(StringType()), True),
-                            StructField("fee", ArrayType(StringType()), True),
-                            StructField("twitter", ArrayType(StringType()), True),
-                            StructField("website", ArrayType(StringType()), True),
-                        ]
-                    ),
-                    True,
-                ),
+                StructField("urls",StructType([
+                                        StructField("blog", ArrayType(StringType()), True),
+                                        StructField("fee", ArrayType(StringType()), True),
+                                        StructField("twitter", ArrayType(StringType()), True),
+                                        StructField("website", ArrayType(StringType()), True),
+                                    ]),True),
                 StructField("fiats", StringType(), True),
                 StructField("date_snapshot", StringType(), True),
             ]
         )
 
-        # Locate latest snapshot
-        snapshot_paths = self.find_latest_data_files("exchange_info_data")
-        if not snapshot_paths:
-            self.log("No snapshot found in 'exchange_info_data'. Skipping dim_exchange_info transformation.")
-            return None
-
-        latest_snapshot = snapshot_paths[0]
         self.log(f"Reading latest exchange_info snapshot: {latest_snapshot.name}")
 
         try:
@@ -250,6 +292,7 @@ class ExchangeTransformer(BaseTransformer):
             .withColumn("fiats", split(trim(col("fiats")), r",\s*"))
             .select(*columns_to_keep)
             .dropna(subset=["exchange_id"])
+            .drop_duplicates(subset=["exchange_id"])
         )
 
         self.log_dataframe_info(dim_exchange_info_df, "Cleaned dim_exchange_info")
@@ -288,54 +331,57 @@ class ExchangeTransformer(BaseTransformer):
 
     def __prepare_dim_exchange_map_df(self) -> Optional[Tuple[DataFrame, str]]:
         """
-        Prepares the dim_exchange_map table from the broadcasted exchange_info data.
+        Prepares the dim_exchange_map table by joining broadcasted metadata.
 
-        This method relies on `broadcasted_exchange_info_df`, which is produced during the
-        execution of `__prepare_dim_exchange_info_df()`. It extracts only the columns
-        relevant for the dim_exchange_map table from this shared broadcasted DataFrame.
+        This method:
+        - Uses `broadcasted_exchange_info_df` (from `exchange_info`)
+        to extract KPIs: weekly_visits, fees, date_snapshot
+        - Optionally joins with `broadcasted_exchange_id_df` (from `exchange_id`)
+        to add the `is_active` column
+        - Applies deduplication on (exchange_id, date_snapshot)
 
         Returns:
-            DataFrame: A cleaned DataFrame with selected columns for dim_exchange_map
-            or None if the broadcasted DataFrame is not available.
+            Optional[Tuple[DataFrame, str]]:
+                - Cleaned and enriched DataFrame for `dim_exchange_map`
+                - None (no static snapshot path used)
         """
         self.log(style="\n")
-        self.log("Processing exchange_map...\n")
-
-        if not hasattr(self, "broadcasted_exchange_info_df"):
-            self.log("[ERROR] broadcasted_exchange_info_df is not available. Please run __prepare_dim_exchange_info_df() first.")
-            return None
+        self.log("Processing dim_exchange_map (append mode from broadcasted info)...\n")
 
         self.log("Preparing dim_exchange_map DataFrame")
+        if self.broadcasted_exchange_info_df is not None:
+            df = (
+                self.broadcasted_exchange_info_df.select(
+                    "exchange_id", "weekly_visits", "maker_fee", "taker_fee", "date_snapshot"
+                )
+                .dropna(subset=["exchange_id", "date_snapshot"])
+                .drop_duplicates(subset=["exchange_id", "date_snapshot"])
+            )
+        else:
+            self.log("[ERROR] broadcasted_exchange_info_df is not available. Please run __prepare_dim_exchange_info_df() first.")
+            return None, None
 
-        df = (
-            self.broadcasted_exchange_info_df.select("exchange_id", "weekly_visits", "maker_fee", "taker_fee", "date_snapshot")
-            .dropna(subset=["exchange_id", "date_snapshot"])
-            .drop_duplicates(subset=["exchange_id", "date_snapshot"])
-        )
+        if self.broadcasted_exchange_id_df is not None:
+            df = df.join(self.broadcasted_exchange_id_df, on="exchange_id", how="left")
 
         self.log_dataframe_info(df, "Cleaned dim_exchange_map")
         return df, None
 
-    def __prepare_exchange_assets_df(self) -> Optional[Tuple[DataFrame, str]]:
+    def __prepare_exchange_assets_df(self, latest_snapshot: str) -> Optional[Tuple[DataFrame, str]]:
         """
-        Prepares the fact_exchange_assets table from the latest snapshot.
+        Prepares the fact_exchange_assets table from the latest exchange_assets snapshot.
 
-        This method :
-        - Loads and validates data from 'exchange_assets_data'
-        - Casts string timestamp to actual timestamp
-        - Renames technical fields to domain terms (e.g., platform_* → blockchain_*)
-        - Enriches each row with the corresponding `spot_volume_usd` from the broadcasted DataFrame
-        - Calculates new KPIs for downstream analytics:
-            * `total_usd_value`: monetary value held in the wallet (balance × price)
-            * `wallet_weight`: relative importance of the wallet within the exchange (value / total volume)
-        - Filters out invalid rows with missing essential fields
-        - Logs row count and schema after transformation
-        - Ensures uniqueness by dropping duplicates based on the composite primary key
-          (`exchange_id`, `wallet_address`, `crypto_id`, `date_snapshot`)
-        - Selects and orders final columns for writing to Delta Lake
+        This method:
+        - Loads and validates wallet-level metrics for each exchange
+        - Renames fields and casts types to match analytical model
+        - Enriches the dataset with broadcasted exchange volume (spot_volume_usd)
+        - Computes derived KPIs: total_usd_value, wallet_weight
+        - Applies deduplication on the composite key (exchange_id, wallet_address, crypto_id, date_snapshot)
 
         Returns:
-            Optional[DataFrame]: Transformed and cleaned DataFrame, or None if snapshot missing.
+            Optional[Tuple[DataFrame, str]]:
+                - Transformed and enriched DataFrame for `fact_exchange_assets`
+                - Path to the snapshot used
         """
         self.log(style="\n")
         self.log("Processing exchange_assets\n")
@@ -354,13 +400,6 @@ class ExchangeTransformer(BaseTransformer):
             ]
         )
 
-        # Locate latest snapshot
-        snapshot_paths = self.find_latest_data_files("exchange_assets_data")
-        if not snapshot_paths:
-            self.log("No snapshot found in 'exchange_assets_data'. Skipping fact_exchange_assets transformation.")
-            return None
-
-        latest_snapshot = snapshot_paths[0]
         self.log(f"Reading latest exchange_assets snapshot: {latest_snapshot.name}")
 
         # Read the data with the explicite schema
