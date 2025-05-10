@@ -90,8 +90,8 @@ class CryptoMapExtractor(BaseExtractor):
                         {
                             "id": x.get("id"),
                             "rank": x.get("rank"),
+                            "name": x.get("name"),                            
                             "symbol": x.get("symbol"),
-                            "slug": x.get("slug"),
                             "is_active": x.get("is_active"),
                             "first_historical_data": x.get("first_historical_data"),
                             "last_historical_data": x.get("last_historical_data"),
