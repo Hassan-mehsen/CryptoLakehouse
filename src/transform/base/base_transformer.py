@@ -1,6 +1,7 @@
 from typing import List, Optional, Callable, Tuple
 from pyspark.sql import SparkSession, DataFrame
 from datetime import datetime, timezone
+from collections import defaultdict
 from pathlib import Path
 import json
 
@@ -95,22 +96,25 @@ class BaseTransformer():
     #                           Logging Methods
     # --------------------------------------------------------------------
 
-    def log(self, message: str = "", style: str = None) -> None:
+    def log(self, message: str = "", table_name : str = None ,style: str = None) -> None:
         """
         Logs a message to the shared transform.log file with timestamp and transformer name.
         Args:
             message (str): The log message to write.
+            table_name (str, optional): The name of the table being processed (included in the log format).
             style (str): Optional. If provided, this exact string will be logged instead of the formatted message.
         """
-
-        formatted = f"[{self.str_timestamp}] [TRANSFORM] [{self.name.upper()}] {message}"
+        if table_name : 
+            formatted = f"[{self.str_timestamp}] [TRANSFORM] [{self.name.upper()}] [{table_name}] {message} \n"
+        else :
+             formatted = f"[{self.str_timestamp}] [TRANSFORM] [{self.name.upper()}] {message} \n"
         try:
             msg = style if style else formatted
             with open(self.log_path, "a") as f:
-                f.write(msg + "\n")
+                f.write(msg)
 
         except Exception as e:
-            print(f"[LOGGING FAILURE] Could not write to {self.log_path} → {e}")
+            print(f"[LOGGING FAILURE] Could not write to {self.log_path} -> {e}")
 
     def log_section(self, title: str, width: int = 50) -> None:
         """
@@ -124,7 +128,7 @@ class BaseTransformer():
         self.log(style=title.center(width))
         self.log(style="\n" + "=" * width + "\n")
 
-    def log_dataframe_info(self, df: DataFrame, label: str = "") -> None:
+    def log_dataframe_info(self, df: DataFrame, label: str = "", table_name : str = None) -> None:
         """
         Logs summary statistics for a DataFrame, including row count and schema.
         Logs any error encountered during inspection.
@@ -136,15 +140,16 @@ class BaseTransformer():
 
         Args:
             df (DataFrame): The Spark DataFrame to inspect.
+            table_name (str, optional): The name of the table being processed (included in the log format).
             label (str): Optional label to contextualize the log (e.g., 'Before filtering', 'After join').
         """
         try:
             count = df.count()
             schema = df.schema.simpleString()
-            self.log(f"[{label}] Row count: {count}, Schema: {schema}")
+            self.log(f"[{label}] Row count: {count}, Schema: {schema}",table_name=table_name)
 
         except Exception as e:
-            self.log(f"[ERROR] Failed to inspect DataFrame [{label}] → {e}")
+            self.log(f"[ERROR] Failed to inspect DataFrame [{label}] -> {e}")
 
     # --------------------------------------------------------------------
     #                       I/O Helper Methods
@@ -173,6 +178,53 @@ class BaseTransformer():
         except Exception as e:
             self.log(f"[ERROR] Failed to list files in {relative_folder} -> {e}")
             return None
+        
+    def find_latest_batch(self, relative_folder: str, expected_batch_count: int = 5, allow_incomplete : bool = False) -> Optional[List[Path]]:
+        """
+        Identifies the most recent complete batch in a folder, based on the timestamp suffix.
+        A batch is considered complete if it contains exactly `expected_batch_count` files.
+
+        Args:
+            relative_folder (str): Subdirectory within the raw data folder (e.g., 'crypto_listings').
+            expected_batch_count (int): Number of files required to consider a batch complete.
+
+        Returns:
+            Optional[List[Path]]: Sorted list of Path objects for the latest complete batch, or None if not found.
+        """
+        try:
+            folder_path = self.raw_data_path / relative_folder
+            files = sorted(folder_path.glob("*.parquet"), reverse=True)
+
+            grouped = defaultdict(list)
+            for f in files:
+                try:
+                    _, timestamp = f.stem.split("-", maxsplit=1)
+                    grouped[timestamp].append(f)
+                except Exception:
+                    continue  # Skip files not matching expected naming pattern
+
+            if not grouped:
+                self.log(f"[WARN] No valid files found in {relative_folder}")
+                return None
+
+            # Only consider the latest group of files by timestamp
+            latest_timestamp = next(iter(grouped))
+            batch_files = grouped[latest_timestamp]
+
+            if len(batch_files) < expected_batch_count and allow_incomplete:
+                self.log(f"[WARN] Incomplete batch for timestamp {latest_timestamp}: {len(batch_files)}/{expected_batch_count} files found.")
+                return sorted(batch_files)
+            elif len(batch_files) < expected_batch_count :
+                self.log(f"[WARN] Incomplete batch for timestamp {latest_timestamp}: {len(batch_files)}/{expected_batch_count} files found.")
+
+            self.log(f"[OK] Latest complete batch found for timestamp {latest_timestamp} with {len(batch_files)} files.")
+            return sorted(batch_files)
+
+        except Exception as e:
+            self.log(f"[ERROR] Failed to find latest batch in {relative_folder} → {e}")
+            return None
+
+
 
     def write_delta(
         self, df: DataFrame, relative_path: str, mode: str = "overwrite", partition_by: Optional[List[str]] = None
