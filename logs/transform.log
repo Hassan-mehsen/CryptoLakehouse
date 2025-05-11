@@ -1,3 +1,6 @@
+
+                "These logs showing"
+
 "Implemented full ExchangeTransformer pipeline with logging & metadata"
 
 "- Added support for transforming and writing:"
@@ -61,6 +64,9 @@
              End ExchangeTransformer              
 ==================================================
 
+
+               "These logs showing"
+
 "ExchangeTransformer -> Snapshot freshness check enabled"
 "Skips transformation if snapshot already processed"
 "Safe fallback to transformation if no metadata found"
@@ -89,4 +95,176 @@
 
 ==================================================
              End ExchangeTransformer              
+==================================================
+
+
+                  "These logs showing"
+
+"Implemented full CryptoTransformer pipeline with logging & metadata"
+
+"- Added support for transforming and writing:"
+"  - `dim_crypto_identity` (from /map endpoint)"
+"  - `dim_crypto_map` (reusing snapshot from identity)"
+"  - `dim_crypto_info` (typed and cleaned metadata)"
+"  - `fact_crypto_market` (batch-based with KPIs)"
+"  - `dim_crypto_categories` (split into dimension + metrics)"
+"  - `fact_crypto_category` (KPI-enriched from broadcasted metrics)"
+"  - `dim_crypto_category_link` (many-to-many mapping table)"
+
+"- Integrated:"
+"  - Structured logging per table and transformation step"
+"  - Snapshot metadata validation (with `should_transform`)"
+"  - Schema tracing and row count logging"
+"  - KPI computation with null protection (via `when(...).otherwise(...)`)"
+"  - Broadcast and snapshot dependency management between dim/fact tables"
+
+"- Result:"
+"  - 7 tables processed"
+"  - All written in Delta format (overwrite or append as appropriate)"
+"  - Metadata updated to support incremental runs"
+==================================================
+            Running CryptoTransformer             
+==================================================
+
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Found 1 parquet file(s) in crypto_map_data (limit=1) 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [INFO] No existing metadata for dim_crypto_identity 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [INFO] No prior ended_at found for dim_crypto_identity. Proceeding. 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_id_dim]  > Starting transformation: dim_crypto_id 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_id_dim] Reading latest crypto_map snapshot: crypto_map-2025-05-10_18-48-02.parquet 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_id_dim] [Cleaned dim_crypto_identity] Row count: 5000, Schema: struct<crypto_id:int,name:string,symbol:string,platform_id:int,platform_name:string,platform_symbol:string,platform_token_address:string> 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Writing Delta file to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/crypto/dim_crypto_identity (mode=overwrite) 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Write successful in mode overwrite to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/crypto/dim_crypto_identity 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] dim_crypto_identity table successfully built and written. 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/dim_crypto_identity.jsonl 
+
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [INFO] No existing metadata for dim_crypto_map 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [INFO] No prior ended_at found for dim_crypto_map. Proceeding. 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_map_dim]  > Starting transformation: dim_crypto_map 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_map_dim] Reading snapshot from: crypto_map-2025-05-10_18-48-02.parquet 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_map_dim] [Cleaned dim_crypto_map] Row count: 5000, Schema: struct<crypto_id:int,date_snapshot:timestamp,rank:int,is_active:int,last_historical_data:timestamp> 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Writing Delta file to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/crypto/dim_crypto_map (mode=append) 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Write successful in mode append to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/crypto/dim_crypto_map 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] dim_crypto_map table successfully built and written. 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/dim_crypto_map.jsonl 
+
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Found 1 parquet file(s) in crypto_info_data (limit=1) 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [INFO] No existing metadata for dim_crypto_info 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [INFO] No prior ended_at found for dim_crypto_info. Proceeding. 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_info_dim]  > Starting transformation: dim_crypto_info 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_info_dim] Reading latest crypto_map snapshot: crypto_info-2025-05-03_22-18-45.parquet 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_info_dim] [Cleaned dim_crypto_info] Row count: 73, Schema: struct<crypto_id:int,slug:string,date_launched:timestamp,date_added:timestamp,date_snapshot:timestamp,category:string,tags:string,description:string,logo_url:string,website_url:string,technical_doc_url:string,explorer_url:string,source_code_url:string,twitter_url:string> 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_info_dim] dim_crypto_info transformation prepared successfully. 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Writing Delta file to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/crypto/dim_crypto_info (mode=overwrite) 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Write successful in mode overwrite to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/crypto/dim_crypto_info 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] dim_crypto_info table successfully built and written. 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/dim_crypto_info.jsonl 
+
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [OK] Latest complete batch found for timestamp 2025-05-05_20-27-54 with 5 files. 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [INFO] No existing metadata for crypto_market_fact 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [INFO] No prior ended_at found for crypto_market_fact. Proceeding. 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_market_fact]  > Starting transformation: fact_crypto_market 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_market_fact] [BATCH INIT] Reading first snapshot of crypto_market_fact batch — total files: 5 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_market_fact] [2/5] Merging snapshot file: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/bronze/crypto_listings_latest_data/crypto_listings_batch2-2025-05-05_20-27-54.parquet - Remaining: 3 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_market_fact] [3/5] Merging snapshot file: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/bronze/crypto_listings_latest_data/crypto_listings_batch3-2025-05-05_20-27-54.parquet - Remaining: 2 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_market_fact] [4/5] Merging snapshot file: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/bronze/crypto_listings_latest_data/crypto_listings_batch4-2025-05-05_20-27-54.parquet - Remaining: 1 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_market_fact] [5/5] Merging snapshot file: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/bronze/crypto_listings_latest_data/crypto_listings_batch5-2025-05-05_20-27-54.parquet - Remaining: 0 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_market_fact] Data cleaning and column normalization done. 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_market_fact] [Cleaned & enriched fact_crypto_market_df] Row count: 5000, Schema: struct<crypto_id:int,date_snapshot:timestamp,batch_index:int,cmc_rank:int,date_added:timestamp,last_updated_usd:timestamp,platform_id:int,circulating_supply:double,total_supply:double,max_supply:double,infinite_supply:boolean,self_reported_circulating_supply:double,price_usd:double,volume_24h_usd:double,volume_change_24h:double,percent_change_1h_usd:double,percent_change_24h_usd:double,percent_change_7d_usd:double,market_cap_usd:double,self_reported_market_cap:double,market_cap_dominance_usd:double,fully_diluted_market_cap_usd:double,num_market_pairs:double,tags:array<string>,volume_to_market_cap_ratio:double,missing_supply_ratio:double,supply_utilization:double,fully_diluted_cap_ratio:double> 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Writing Delta file to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/crypto/crypto_market_fact (mode=append) 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Write successful in mode append to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/crypto/crypto_market_fact 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] crypto_market_fact table successfully built and written. 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/crypto_market_fact.jsonl 
+
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Found 1 parquet file(s) in crypto_category_data (limit=1) 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [INFO] No existing metadata for crypto_category_link 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [INFO] No prior ended_at found for crypto_category_link. Proceeding. 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_categories_link]  > Starting transformation: crypto_category_link 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_categories_link] Reading latest crypto_category_link snapshot: link_crypto_category-2025-05-01_17-28-18.parquet 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_categories_link] [Cleaned crypto_category_link] Row count: 23108, Schema: struct<crypto_id:int,category_id:string> 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Writing Delta file to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/crypto/crypto_category_link (mode=overwrite) 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Write successful in mode overwrite to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/crypto/crypto_category_link 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] crypto_category_link table successfully built and written. 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/crypto_category_link.jsonl 
+
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Found 1 parquet file(s) in crypto_categories_data (limit=1) 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [INFO] No existing metadata for crypto_categories_dim 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [INFO] No prior ended_at found for crypto_categories_dim. Proceeding. 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_categories_dim]  > Starting transformation: crypto_categories_dim 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_categories_dim] Reading latest crypto_categories_dim snapshot: crypto_categories-2025-05-05_20-25-55.parquet 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_categories_dim] [Cleaned dim_crypto_categories] Row count: 278, Schema: struct<category_id:string,name:string,title:string,description:string> 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_categories_dim] [Cleaned broadcasted_crypto_categories_metrics] Row count: 278, Schema: struct<category_id:string,date_snapshot:timestamp,num_tokens:int,avg_price_change:double,market_cap:double,market_cap_change:double,volume:double,volume_change:double,last_updated:timestamp> 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Writing Delta file to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/crypto/crypto_categories_dim (mode=overwrite) 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Write successful in mode overwrite to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/crypto/crypto_categories_dim 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] crypto_categories_dim table successfully built and written. 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/crypto_categories_dim.jsonl 
+
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [INFO] No existing metadata for crypto_category_fact 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [INFO] No prior ended_at found for crypto_category_fact. Proceeding. 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_categories_fact]  > Starting transformation: fact_crypto_category (append mode from broadcasted categories) 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_categories_fact] [OK] Found broadcasted_crypto_categories_metrics. Proceeding with KPI calculations for fact_crypto_category. 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_categories_fact] [Cleaned fact_crypto_category] Row count: 278, Schema: struct<category_id:string,date_snapshot:timestamp,num_tokens:int,avg_price_change:double,market_cap:double,market_cap_change:double,volume:double,volume_change:double,last_updated:timestamp,volume_to_market_cap_ratio:double,dominance_per_token:double,market_cap_change_rate:double,volume_change_rate:double,price_change_index:double> 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Writing Delta file to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/crypto/crypto_category_fact (mode=append) 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Write successful in mode append to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/crypto/crypto_category_fact 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] crypto_category_fact table successfully built and written. 
+[2025-05-11 13:45:29] [TRANSFORM] [CRYPTOTRANSFORMER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/crypto_category_fact.jsonl 
+
+==================================================
+              End CryptoTransformer               
+==================================================
+
+"These logs show a dry run of the CryptoTransformer pipeline where all transformations were skipped."
+
+" Each build_* method correctly detected that the corresponding snapshot had already been processed:"
+"   - Current Parquet snapshot is outdated: last transformation occurred after its timestamp"
+"   - No changes detected -> all tables marked as up to date -> skipping"
+
+" Metadata tracking worked as expected:"
+"   - .jsonl metadata files successfully loaded and parsed"
+"   - Logical checks (`should_transform`) prevented redundant computation"
+
+" This behavior confirms:"
+"   - Snapshot tracking is consistent across runs"
+"   - The pipeline is idempotent and fault-tolerant"
+"   - Delta files were already written and didn't require reprocessing"
+
+"This is a healthy validation step to ensure no unnecessary transformations are run between batches."
+==================================================
+            Running CryptoTransformer             
+==================================================
+
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] Found 1 parquet file(s) in crypto_map_data (limit=1) 
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/dim_crypto_identity.jsonl 
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] Last .parquet record at : 2025-05-10 and last transformed at 2025-05-11 
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_id_dim] dim_crypto_identity is up to date. Skipping transformation. 
+
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/dim_crypto_map.jsonl 
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] Last .parquet record at : 2025-05-10 and last transformed at 2025-05-11 
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_map_dim] dim_crypto_map is up to date. Skipping transformation. 
+
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] Found 1 parquet file(s) in crypto_info_data (limit=1) 
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/dim_crypto_info.jsonl 
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] Last .parquet record at : 2025-05-03 22:18:45 and last transformed at 2025-05-11 13:45:29.840857 
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_info_dim] dim_crypto_info is up to date. Skipping transformation. 
+
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] [OK] Latest complete batch found for timestamp 2025-05-05_20-27-54 with 5 files. 
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/crypto_market_fact.jsonl 
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] Last .parquet record at : 2025-05-05 20:27:54 and last transformed at 2025-05-11 13:45:29.840857 
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_market_fact] crypto_market_fact is up to date. Skipping transformation. 
+
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] Found 1 parquet file(s) in crypto_category_data (limit=1) 
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/crypto_category_link.jsonl 
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] Last .parquet record at : 2025-05-01 17:28:18 and last transformed at 2025-05-11 13:45:29.840857 
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_categories_link] crypto_category_link is up to date. Skipping transformation. 
+
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] Found 1 parquet file(s) in crypto_categories_data (limit=1) 
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/crypto_categories_dim.jsonl 
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] Last .parquet record at : 2025-05-05 20:25:55 and last transformed at 2025-05-11 13:45:29.840857 
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_categories_dim] crypto_categories_dim is up to date. Skipping transformation. 
+
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/crypto_category_fact.jsonl 
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] Last .parquet record at : 2025-05-05 and last transformed at 2025-05-11 
+[2025-05-11 13:46:09] [TRANSFORM] [CRYPTOTRANSFORMER] [crypto_categories_fact] crypto_category_fact is up to date. Skipping transformation. 
+
+==================================================
+              End CryptoTransformer               
 ==================================================
