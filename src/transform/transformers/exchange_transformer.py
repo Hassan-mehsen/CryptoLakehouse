@@ -1,4 +1,4 @@
-from pyspark.sql.functions import col, to_timestamp, split, trim, broadcast, when, lit
+from pyspark.sql.functions import col, to_timestamp, split, trim, broadcast, when, lit, size, date_format
 from transform.base.base_transformer import BaseTransformer
 from pyspark.sql import DataFrame, SparkSession
 from typing import Optional, Tuple
@@ -35,13 +35,18 @@ class ExchangeTransformer(BaseTransformer):
     - Fault-tolerance is built in: missing or invalid inputs do not crash the pipeline
     - Reusability and maintainability are favored through shared logic and logging
 
-    This class is typically invoked as part of a DAG step in a Spark ETL job or notebook pipeline.
+    This class is typically invoked as part of a DAG step in a Spark ETL job.
     """
 
     def __init__(self, spark: SparkSession):
         super().__init__(spark)
 
+        # Stores the broadcasted metrics DataFrame from dim_exchange_info,
+        # used in dim_exchange_map to inject KPIs (visits, fees) and timestamps
         self.broadcasted_exchange_info_df = None
+
+        # Stores the broadcasted status DataFrame from dim_exchange_id,
+        # used in dim_exchange_map to add the `is_active` exchange flag
         self.broadcasted_exchange_id_df = None
 
     # --------------------------------------------------------------------
@@ -58,14 +63,16 @@ class ExchangeTransformer(BaseTransformer):
         - Delegates the preparation to `__prepare_dim_exchange_id_df`
         - Delegates writing, logging, and metadata to `_run_build_step`
         """
+        self.log(style="\n")
+
         snapshot_paths = self.find_latest_data_files("exchange_map_data")
         if not snapshot_paths:
-            self.log("No snapshot available for dim_exchange_id. Skipping.")
+            self.log("No snapshot available for dim_exchange_id. Skipping.", table_name="exchange_id_dim")
             return
 
         latest_snapshot = snapshot_paths[0]
         if not self.should_transform("dim_exchange_id", latest_snapshot, daily_comparison=True):
-            self.log("dim_exchange_id is up to date. Skipping transformation.")
+            self.log("dim_exchange_id is up to date. Skipping transformation.", table_name="exchange_id_dim")
             return
 
         self._run_build_step("dim_exchange_id", lambda: self.__prepare_dim_exchange_id_df(latest_snapshot), "dim_exchange_id")
@@ -80,14 +87,16 @@ class ExchangeTransformer(BaseTransformer):
         - Delegates the preparation and broadcasting to `__prepare_dim_exchange_info_df`
         - Delegates writing, logging, and metadata to `_run_build_step`
         """
+        self.log(style="\n")
+
         snapshot_paths = self.find_latest_data_files("exchange_info_data")
         if not snapshot_paths:
-            self.log("No snapshot available for dim_exchange_info. Skipping.")
+            self.log("No snapshot available for dim_exchange_info. Skipping.", table_name="exchange_info_dim")
             return
 
         latest_snapshot = snapshot_paths[0]
         if not self.should_transform("dim_exchange_info", latest_snapshot, daily_comparison=True):
-            self.log("dim_exchange_info is up to date. Skipping transformation.")
+            self.log("dim_exchange_info is up to date. Skipping transformation.", table_name="exchange_info_dim")
             return
 
         self._run_build_step(
@@ -104,6 +113,8 @@ class ExchangeTransformer(BaseTransformer):
         - Delegates the preparation to `__prepare_dim_exchange_map_df`
         - Writes the data in append mode via `_run_build_step`
         """
+        self.log(style="\n")
+
         self._run_build_step("dim_exchange_map", self.__prepare_dim_exchange_map_df, "dim_exchange_map", mode="append")
 
     def build_exchange_assets_fact(self) -> None:
@@ -117,14 +128,16 @@ class ExchangeTransformer(BaseTransformer):
         - Delegates writing, logging, and metadata tracking to `_run_build_step`
         - Appends new data to the existing Delta table
         """
+        self.log(style="\n")
+        
         snapshot_paths = self.find_latest_data_files("exchange_assets_data")
         if not snapshot_paths:
-            self.log("No snapshot available for fact_exchange_assets. Skipping.")
+            self.log("No snapshot available for fact_exchange_assets. Skipping.", table_name="exchange_assets_fact")
             return
 
         latest_snapshot = snapshot_paths[0]
         if not self.should_transform("fact_exchange_assets", latest_snapshot, daily_comparison=False):
-            self.log("fact_exchange_assets is up to date. Skipping transformation.")
+            self.log("fact_exchange_assets is up to date. Skipping transformation.", table_name="exchange_assets_fact")
             return
 
         self._run_build_step(
@@ -136,15 +149,10 @@ class ExchangeTransformer(BaseTransformer):
 
     def run(self):
         """
-        Entry point for executing the full transformation workflow for the exchange domain.
+        Executes the full transformation pipeline for the exchange domain in sequence.
 
-        This method runs all transformation pipelines sequentially:
-        - dim_exchange_id
-        - dim_exchange_info
-        - dim_exchange_map
-        - fact_exchange_assets
-
-        Each step logs its own progress and writes structured metadata.
+        This method is intended for local testing or manual execution.
+        In production, transformations are triggered individually through DAG orchestration.
         """
         self.log_section("Running ExchangeTransformer")
         self.build_exchange_id_dim()
@@ -173,32 +181,30 @@ class ExchangeTransformer(BaseTransformer):
                 - Cleaned DataFrame for `dim_exchange_id`
                 - Path to the snapshot used
         """
-        self.log(style="\n")
-        self.log("Processing exchange_id... \n")
+        self.log("> Starting transformation: exchange_id... ", table_name="exchange_id_dim")
 
         # Define strict schema
-        schema = StructType(
-            [
-                StructField("id", LongType(), True),
-                StructField("name", StringType(), True),
-                StructField("is_active", LongType(), True),
-            ]
-        )
-        #
-        self.log(f"Reading latest exchange_map snapshot: {latest_snapshot}")
+        schema = StructType([
+                    StructField("id", LongType(), True),
+                    StructField("name", StringType(), True),
+                    StructField("is_active", LongType(), True),
+                ])
+        
+        self.log(f"Reading latest exchange_map snapshot: {latest_snapshot}", table_name="exchange_id_dim")
 
         # Read with schema
         try:
             df_raw = self.spark.read.schema(schema).parquet(str(latest_snapshot))
+
         except Exception as e:
-            self.log(f"[ERROR] Failed to read Parquet file at {latest_snapshot} → {e}")
+            self.log(f"[ERROR] Failed to read Parquet file at {latest_snapshot} -> {e}", table_name="exchange_id_dim")
             return None
 
         # --- Build dim_exchange_id table ---
         df_cleaned = (
             df_raw.withColumn("exchange_id", df_raw["id"].cast("int")).drop("id", "is_active").dropna(subset=["exchange_id"])
         )
-        self.log_dataframe_info(df_cleaned, "Cleaned dim_exchange_id")
+        self.log_dataframe_info(df_cleaned, "Cleaned dim_exchange_id", table_name="exchange_id_dim")
 
         # Build broadcasted version for map (with is_active)
         broadcast_id_df = (
@@ -208,7 +214,7 @@ class ExchangeTransformer(BaseTransformer):
             .dropna(subset=["exchange_id"])
         )
 
-        self.log_dataframe_info(broadcast_id_df, "Cleaned broadcast_id_df")
+        self.log_dataframe_info(broadcast_id_df, "Cleaned broadcast_id_df", table_name="exchange_id_dim")
 
         self.broadcasted_exchange_id_df = broadcast(broadcast_id_df)
 
@@ -230,43 +236,42 @@ class ExchangeTransformer(BaseTransformer):
                 - Cleaned DataFrame for `dim_exchange_info`
                 - Path to the snapshot used
         """
-        self.log(style="\n")
-        self.log("Processing exchange_info... \n")
+        self.log("> Starting transformation: exchange_info... ", table_name="exchange_info_dim")
 
         # Define expected schema
-        schema = StructType(
-            [
-                StructField("id", LongType(), True),  # To be cast to Integer
-                StructField("slug", StringType(), True),
-                StructField("description", StringType(), True),
-                StructField("date_launched", StringType(), True),
-                StructField("logo", StringType(), True),
-                StructField("weekly_visits", DoubleType(), True),  # To be cast to Integer
-                StructField("spot_volume_usd", DoubleType(), True),
-                StructField("maker_fee", DoubleType(), True),  # To be cast to Float
-                StructField("taker_fee", DoubleType(), True),  # To be cast to Float
-                StructField("urls",StructType([
-                                        StructField("blog", ArrayType(StringType()), True),
-                                        StructField("fee", ArrayType(StringType()), True),
-                                        StructField("twitter", ArrayType(StringType()), True),
-                                        StructField("website", ArrayType(StringType()), True),
-                                    ]),True),
-                StructField("fiats", StringType(), True),
-                StructField("date_snapshot", StringType(), True),
-            ]
-        )
+        schema = StructType([
+                    StructField("id", LongType(), True),  
+                    StructField("slug", StringType(), True),
+                    StructField("description", StringType(), True),
+                    StructField("date_launched", StringType(), True),
+                    StructField("logo", StringType(), True),
+                    StructField("weekly_visits", DoubleType(), True),   
+                    StructField("spot_volume_usd", DoubleType(), True),
+                    StructField("maker_fee", DoubleType(), True),       
+                    StructField("taker_fee", DoubleType(), True),       
+                    StructField("urls",StructType([
+                                            StructField("blog", ArrayType(StringType()), True),
+                                            StructField("fee", ArrayType(StringType()), True),
+                                            StructField("twitter", ArrayType(StringType()), True),
+                                            StructField("website", ArrayType(StringType()), True),
+                                        ]),
+                        True),
+                    StructField("fiats", StringType(), True),
+                    StructField("date_snapshot", StringType(), True),
+                ])
 
-        self.log(f"Reading latest exchange_info snapshot: {latest_snapshot.name}")
+        self.log(f"Reading latest exchange_info snapshot: {latest_snapshot.name}", table_name="exchange_info_dim")
 
         try:
             df_raw = self.spark.read.schema(schema).parquet(str(latest_snapshot))
-            self.log("Successfully loaded exchange_info raw DataFrame")
+            self.log("Successfully loaded exchange_info raw DataFrame", table_name="exchange_info_dim")
+
         except Exception as e:
-            self.log(f"[ERROR] Failed to read Parquet file at {latest_snapshot} → {e}")
+            self.log(f"[ERROR] Failed to read Parquet file at {latest_snapshot} -> {e}", table_name="exchange_info_dim")
             return None
 
         # --- Build dim_exchange_info table ---
-        self.log("Preparing dim_exchange_info DataFrame...")
+        self.log("Preparing dim_exchange_info DataFrame...", table_name="exchange_info_dim")
 
         columns_to_keep = [
             "exchange_id",
@@ -283,44 +288,67 @@ class ExchangeTransformer(BaseTransformer):
 
         dim_exchange_info_df = (
             df_raw.withColumn("exchange_id", col("id").cast("int"))
-            .withColumn("date_launched", to_timestamp("date_launched"))
+            .withColumn("date_launched", date_format(col("date_launched"), "yyyy-MM-dd HH:mm:ss"))
             .withColumnRenamed("logo", "logo_url")
-            .withColumn("website_url", col("urls.website")[0])
-            .withColumn("twitter_url", col("urls.twitter")[0])
-            .withColumn("fee_url", col("urls.fee")[0])
-            .withColumn("blog_url", col("urls.blog")[0])
-            .withColumn("fiats", split(trim(col("fiats")), r",\s*"))
+            .withColumn(
+                "website_url",
+                when(
+                    col("urls").isNotNull() & col("urls.website").isNotNull() & (size(col("urls.website")) > 0),
+                    col("urls.website")[0],
+                ).otherwise(lit(None)),
+            )
+            .withColumn(
+                "twitter_url",
+                when(
+                    col("urls").isNotNull() & col("urls.twitter").isNotNull() & (size(col("urls.twitter")) > 0),
+                    col("urls.twitter")[0],
+                ).otherwise(lit(None)),
+            )
+            .withColumn(
+                "fee_url",
+                when(
+                    col("urls").isNotNull() & col("urls.fee").isNotNull() & (size(col("urls.fee")) > 0), col("urls.fee")[0]
+                ).otherwise(lit(None)),
+            )
+            .withColumn(
+                "blog_url",
+                when(
+                    col("urls").isNotNull() & col("urls.blog").isNotNull() & (size(col("urls.blog")) > 0), col("urls.blog")[0]
+                ).otherwise(lit(None)),
+            )
+            .withColumn("fiats", when(col("fiats").isNotNull(), split(trim(col("fiats")), r",\s*")).otherwise(lit(None)))
             .select(*columns_to_keep)
             .dropna(subset=["exchange_id"])
             .drop_duplicates(subset=["exchange_id"])
         )
 
-        self.log_dataframe_info(dim_exchange_info_df, "Cleaned dim_exchange_info")
+        self.log_dataframe_info(dim_exchange_info_df, "Cleaned dim_exchange_info", table_name="exchange_info_dim")
 
         # --- Broadcast useful columns for other tables ---
-        self.log("Preparing broadcasted DataFrame for other tables...")
+        self.log("Preparing broadcasted DataFrame for other tables...", table_name="exchange_info_dim")
 
         broadcast_columns = [
             "exchange_id",
+            "snapshot_timestamp",
+            "snapshot_str",
             "weekly_visits",
             "spot_volume_usd",
             "maker_fee",
             "taker_fee",
-            "date_snapshot",
         ]
 
         broadcast_df = (
             df_raw.withColumn("exchange_id", col("id").cast("int"))
-            .withColumn("spot_volume_usd", col("spot_volume_usd"))
             .withColumn("weekly_visits", col("weekly_visits").cast("int"))
             .withColumn("maker_fee", col("maker_fee").cast("float"))
             .withColumn("taker_fee", col("taker_fee").cast("float"))
-            .withColumn("date_snapshot", to_timestamp("date_snapshot"))
+            .withColumn("snapshot_timestamp", to_timestamp("date_snapshot"))
+            .withColumn("snapshot_str", date_format(col("snapshot_timestamp"), "yyyy-MM-dd HH:mm:ss"))
             .select(*broadcast_columns)
             .dropna(subset=["exchange_id"])
         )
 
-        self.log_dataframe_info(broadcast_df, "Cleaned broadcast_df")
+        self.log_dataframe_info(broadcast_df, "Cleaned broadcast_df", table_name="exchange_info_dim")
 
         # Broadcast the DataFrame globally (available to be reused across joins)
         # NOTE: self.broadcasted_exchange_info_df does NOT store the actual DataFrame,
@@ -335,36 +363,40 @@ class ExchangeTransformer(BaseTransformer):
 
         This method:
         - Uses `broadcasted_exchange_info_df` (from `exchange_info`)
-        to extract KPIs: weekly_visits, fees, date_snapshot
+        to extract KPIs: weekly_visits, fees, snapshot_timestamp
         - Optionally joins with `broadcasted_exchange_id_df` (from `exchange_id`)
         to add the `is_active` column
-        - Applies deduplication on (exchange_id, date_snapshot)
+        - Applies deduplication on (exchange_id, snapshot_timestamp)
 
         Returns:
             Optional[Tuple[DataFrame, str]]:
                 - Cleaned and enriched DataFrame for `dim_exchange_map`
                 - None (no static snapshot path used)
         """
-        self.log(style="\n")
-        self.log("Processing dim_exchange_map (append mode from broadcasted info)...\n")
+        self.log(
+            "> Starting transformation: dim_exchange_map (append mode from broadcasted info)...", table_name="dim_exchange_map"
+        )
 
-        self.log("Preparing dim_exchange_map DataFrame")
+        self.log("Preparing dim_exchange_map DataFrame", table_name="dim_exchange_map")
         if self.broadcasted_exchange_info_df is not None:
             df = (
                 self.broadcasted_exchange_info_df.select(
-                    "exchange_id", "weekly_visits", "maker_fee", "taker_fee", "date_snapshot"
+                    "exchange_id", "snapshot_timestamp", "snapshot_str", "weekly_visits", "maker_fee", "taker_fee"
                 )
-                .dropna(subset=["exchange_id", "date_snapshot"])
-                .drop_duplicates(subset=["exchange_id", "date_snapshot"])
+                .dropna(subset=["exchange_id", "snapshot_timestamp"])
+                .drop_duplicates(subset=["exchange_id", "snapshot_timestamp"])
             )
         else:
-            self.log("[ERROR] broadcasted_exchange_info_df is not available. Please run __prepare_dim_exchange_info_df() first.")
+            self.log(
+                "[WARNING] broadcasted_exchange_info_df is not available. Please run __prepare_dim_exchange_info_df() first.",
+                table_name="dim_exchange_map",
+            )
             return None, None
 
         if self.broadcasted_exchange_id_df is not None:
             df = df.join(self.broadcasted_exchange_id_df, on="exchange_id", how="left")
 
-        self.log_dataframe_info(df, "Cleaned dim_exchange_map")
+        self.log_dataframe_info(df, "Cleaned dim_exchange_map", table_name="dim_exchange_map")
         return df, None
 
     def __prepare_exchange_assets_df(self, latest_snapshot: str) -> Optional[Tuple[DataFrame, str]]:
@@ -376,46 +408,45 @@ class ExchangeTransformer(BaseTransformer):
         - Renames fields and casts types to match analytical model
         - Enriches the dataset with broadcasted exchange volume (spot_volume_usd)
         - Computes derived KPIs: total_usd_value, wallet_weight
-        - Applies deduplication on the composite key (exchange_id, wallet_address, crypto_id, date_snapshot)
+        - Applies deduplication on the composite key (exchange_id, wallet_address, crypto_id, snapshot_timestamp)
 
         Returns:
             Optional[Tuple[DataFrame, str]]:
                 - Transformed and enriched DataFrame for `fact_exchange_assets`
                 - Path to the snapshot used
         """
-        self.log(style="\n")
-        self.log("Processing exchange_assets\n")
+        self.log("Processing exchange_assets", table_name="exchange_assets_fact")
 
         # Define expected schema
-        schema = StructType(
-            [
-                StructField("exchange_id", LongType(), True),
-                StructField("date_snapshot", StringType(), True),
-                StructField("platform_symbol", StringType(), True),
-                StructField("platform_name", StringType(), True),
-                StructField("wallet_address", StringType(), True),
-                StructField("currency_crypto_id", LongType(), True),
-                StructField("balance", DoubleType(), True),
-                StructField("currency_price_usd", DoubleType(), True),
-            ]
-        )
+        schema = StructType([
+                        StructField("exchange_id", LongType(), True),
+                        StructField("date_snapshot", StringType(), True),
+                        StructField("platform_symbol", StringType(), True),
+                        StructField("platform_name", StringType(), True),
+                        StructField("wallet_address", StringType(), True),
+                        StructField("currency_crypto_id", LongType(), True),
+                        StructField("balance", DoubleType(), True),
+                        StructField("currency_price_usd", DoubleType(), True),
+                    ])
 
-        self.log(f"Reading latest exchange_assets snapshot: {latest_snapshot.name}")
+        self.log(f"Reading latest exchange_assets snapshot: {latest_snapshot.name}", table_name="exchange_assets_fact")
 
         # Read the data with the explicite schema
         try:
             df_raw = self.spark.read.schema(schema).parquet(str(latest_snapshot))
-            self.log("Successfully loaded exchange_assets raw DataFrame")
+            self.log("Successfully loaded exchange_assets raw DataFrame", table_name="exchange_assets_fact")
+
         except Exception as e:
-            self.log(f"[ERROR] Failed to read Parquet file at {latest_snapshot} → {e}")
+            self.log(f"[ERROR] Failed to read Parquet file at {latest_snapshot} -> {e}", table_name="exchange_assets_fact")
             return None
 
-        self.log("Preparing fact_exchange_assets DataFrame...")
+        self.log("Preparing fact_exchange_assets DataFrame...", table_name="exchange_assets_fact")
 
         columns_to_keep = [
             "exchange_id",
+            "snapshot_timestamp",
+            "snapshot_str",
             "spot_volume_usd",
-            "date_snapshot",
             "blockchain_symbol",
             "blockchain_name",
             "wallet_address",
@@ -432,28 +463,46 @@ class ExchangeTransformer(BaseTransformer):
                 self.broadcasted_exchange_info_df.select("exchange_id", "spot_volume_usd"), on="exchange_id", how="left"
             )
         else:
-            self.log("[WARNING] broadcasted_exchange_info_df is None — using Null as fallback for spot_volume_usd.")
+            self.log(
+                "[WARNING] broadcasted_exchange_info_df is None — using Null as fallback for spot_volume_usd.",
+                table_name="exchange_assets_fact",
+            )
             df_with_volume = df_raw.withColumn("spot_volume_usd", lit(None))
 
-        # Below a description of the added column's :
-        # total_usd_value = total USD value held in this wallet
-        # wallet_weight =   relative to the total spot volume
         df_transformed = (
             df_with_volume.withColumn("exchange_id", col("exchange_id").cast("int"))
             .withColumn("crypto_id", col("currency_crypto_id").cast("int"))
-            .withColumn("date_snapshot", to_timestamp(col("date_snapshot")))
-            .withColumn("total_usd_value", col("balance") * col("currency_price_usd"))
-            .withColumn(
-                "wallet_weight",
-                when(col("spot_volume_usd").isNotNull(), col("total_usd_value") / col("spot_volume_usd")).otherwise(None),
-            )
+            .withColumn("snapshot_timestamp", to_timestamp("date_snapshot"))
+            .withColumn("snapshot_str", date_format(col("snapshot_timestamp"), "yyyy-MM-dd HH:mm:ss"))
             .withColumnRenamed("platform_symbol", "blockchain_symbol")
             .withColumnRenamed("platform_name", "blockchain_name")
-            .dropna(subset=["exchange_id", "crypto_id", "wallet_address", "date_snapshot"])
-            .dropDuplicates(["exchange_id", "wallet_address", "crypto_id", "date_snapshot"])
-            .select(*columns_to_keep)
+            .dropna(subset=["exchange_id", "crypto_id", "wallet_address", "snapshot_timestamp"])
+            .dropDuplicates(["exchange_id", "wallet_address", "crypto_id", "snapshot_timestamp"])
         )
 
-        self.log_dataframe_info(df_transformed, "Cleaned fact_exchange_assets")
+        # Add derived KPIs
+        df_enriched = (
+            df_transformed
+            # KPI 1 : total_usd_value
+            .withColumn(
+                "total_usd_value",
+                when(
+                    col("balance").isNotNull() & col("currency_price_usd").isNotNull(), col("balance") * col("currency_price_usd")
+                ).otherwise(None),
+            )
+            # KPI 2 : wallet_weight
+            .withColumn(
+                "wallet_weight",
+                when(
+                    col("spot_volume_usd").isNotNull()
+                    & (col("spot_volume_usd") != 0)
+                    & col("balance").isNotNull()
+                    & col("currency_price_usd").isNotNull(),
+                    (col("balance") * col("currency_price_usd")) / col("spot_volume_usd"),
+                ).otherwise(None),
+            ).select(*columns_to_keep)
+        )
 
-        return df_transformed, latest_snapshot
+        self.log_dataframe_info(df_enriched, "Cleaned fact_exchange_assets", table_name="exchange_assets_fact")
+
+        return df_enriched, latest_snapshot

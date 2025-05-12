@@ -1,9 +1,8 @@
-from pyspark.sql.functions import col, to_timestamp, split, broadcast, when, lit
+from pyspark.sql.functions import col, to_timestamp, split, broadcast, when, lit, date_format, to_date
 from transform.base.base_transformer import BaseTransformer
 from pyspark.sql import DataFrame, SparkSession
 from typing import Optional, Tuple, List
 from pyspark.sql.types import *
-from datetime import datetime
 
 
 class CryptoTransformer(BaseTransformer):
@@ -46,10 +45,10 @@ class CryptoTransformer(BaseTransformer):
         # used later for computing fact_crypto_category KPIs
         self.broadcasted_crypto_categories_metrics = None
 
-
     # --------------------------------------------------------------------
     #                          Public entrypoints
     # --------------------------------------------------------------------
+
     def run(self):
         """
         Executes the full transformation pipeline for the crypto domain in sequence.
@@ -88,9 +87,10 @@ class CryptoTransformer(BaseTransformer):
             None
         """
         self.log(style="\n")
+
         snapshot_paths = self.find_latest_data_files("crypto_map_data")
         if not snapshot_paths:
-            self.log("No snapshot available for dim_crypto_identity. Skipping",table_name="crypto_id_dim")
+            self.log("No snapshot available for dim_crypto_identity. Skipping", table_name="crypto_id_dim")
             return None
 
         last_snapshot = snapshot_paths[0]
@@ -101,12 +101,10 @@ class CryptoTransformer(BaseTransformer):
             return
 
         if not self.should_transform("dim_crypto_identity", last_snapshot, force=False, daily_comparison=True):
-            self.log("dim_crypto_identity is up to date. Skipping transformation.",table_name="crypto_id_dim")
+            self.log("dim_crypto_identity is up to date. Skipping transformation.", table_name="crypto_id_dim")
             return
 
-        self._run_build_step(
-            "dim_crypto_identity", lambda: self.__prepare_dim_crypto_id_df(last_snapshot), "dim_crypto_identity"
-        )
+        self._run_build_step("dim_crypto_identity", lambda: self.__prepare_dim_crypto_id_df(last_snapshot), "dim_crypto_identity")
 
     def build_crypto_map_dim(self) -> None:
         """
@@ -122,11 +120,13 @@ class CryptoTransformer(BaseTransformer):
         self.log(style="\n")
 
         if self.last_map_snapshot is None:
-            self.log("[ERROR] No snapshot set for crypto_map. Please run build_crypto_id_dim() first.",table_name="crypto_map_dim")
+            self.log(
+                "[ERROR] No snapshot set for crypto_map. Please run build_crypto_id_dim() first.", table_name="crypto_map_dim"
+            )
             return
 
         if not self.should_transform("dim_crypto_map", self.last_map_snapshot, force=False, daily_comparison=True):
-            self.log("dim_crypto_map is up to date. Skipping transformation.",table_name="crypto_map_dim")
+            self.log("dim_crypto_map is up to date. Skipping transformation.", table_name="crypto_map_dim")
             return
 
         self._run_build_step("dim_crypto_map", self.__prepare_dim_crypto_map_df, "dim_crypto_map", mode="append")
@@ -152,7 +152,7 @@ class CryptoTransformer(BaseTransformer):
 
         snapshot_paths = self.find_latest_data_files("crypto_info_data")
         if not snapshot_paths:
-            self.log("No snapshot available for dim_crypto_info. Skipping",table_name="crypto_info_dim")
+            self.log("No snapshot available for dim_crypto_info. Skipping", table_name="crypto_info_dim")
             return None
 
         last_snapshot = snapshot_paths[0]
@@ -190,21 +190,20 @@ class CryptoTransformer(BaseTransformer):
         batch_paths = self.find_latest_batch("crypto_listings_latest_data")
 
         if not batch_paths:
-            self.log("[SKIP] No snapshot found in directory: crypto_listings_latest_data. Skipping transformation.",table_name="crypto_market_fact")
+            self.log(
+                "[SKIP] No snapshot found in directory: crypto_listings_latest_data. Skipping transformation.",
+                table_name="crypto_market_fact",
+            )
             return None
 
         # Check if one file from the batch has already been processed (all 5 are treated together)
         if not self.should_transform("crypto_market_fact", batch_paths[0], force=False, daily_comparison=False):
-            self.log("crypto_market_fact is up to date. Skipping transformation.",table_name="crypto_market_fact")
+            self.log("crypto_market_fact is up to date. Skipping transformation.", table_name="crypto_market_fact")
             return
-
 
         # Run the build step by invoking the preparation function
         self._run_build_step(
-            "crypto_market_fact",
-            lambda: self.__prepare_fact_crypto_market_df(batch_paths),
-            "crypto_market_fact",
-            mode="append"
+            "crypto_market_fact", lambda: self.__prepare_fact_crypto_market_df(batch_paths), "crypto_market_fact", mode="append"
         )
 
     def build_crypto_categories_dim(self) -> None:
@@ -228,21 +227,23 @@ class CryptoTransformer(BaseTransformer):
 
         snapshot_paths = self.find_latest_data_files("crypto_categories_data")
         if not snapshot_paths:
-            self.log("No snapshot available for crypto_categories_dim. Skipping",table_name="crypto_categories_dim")
+            self.log("No snapshot available for crypto_categories_dim. Skipping", table_name="crypto_categories_dim")
             return None
 
         last_snapshot = snapshot_paths[0]
         self.last_categories_snapshot = last_snapshot
 
         if last_snapshot is None:
-            self.log("[ERROR] No snapshot set for crypto_categories_dim. Aborting.",table_name="crypto_categories_dim")
+            self.log("[ERROR] No snapshot set for crypto_categories_dim. Aborting.", table_name="crypto_categories_dim")
             return
 
         if not self.should_transform("crypto_categories_dim", last_snapshot, force=False, daily_comparison=False):
-            self.log("crypto_categories_dim is up to date. Skipping transformation.",table_name="crypto_categories_dim")
+            self.log("crypto_categories_dim is up to date. Skipping transformation.", table_name="crypto_categories_dim")
             return
 
-        self._run_build_step("crypto_categories_dim", lambda: self.__prepare_dim_crypto_categories_df(last_snapshot), "crypto_categories_dim")
+        self._run_build_step(
+            "crypto_categories_dim", lambda: self.__prepare_dim_crypto_categories_df(last_snapshot), "crypto_categories_dim"
+        )
 
     def build_crypto_category_fact(self) -> None:
         """
@@ -264,14 +265,19 @@ class CryptoTransformer(BaseTransformer):
         self.log(style="\n")
 
         if self.last_categories_snapshot is None:
-            self.log("[ERROR] No snapshot set for crypto_category_fact. Please run build_crypto_categories_dim() first.",table_name="crypto_categories_fact")
+            self.log(
+                "[ERROR] No snapshot set for crypto_category_fact. Please run build_crypto_categories_dim() first.",
+                table_name="crypto_categories_fact",
+            )
             return
 
         if not self.should_transform("crypto_category_fact", self.last_categories_snapshot, force=False, daily_comparison=True):
-            self.log("crypto_category_fact is up to date. Skipping transformation.",table_name="crypto_categories_fact")
+            self.log("crypto_category_fact is up to date. Skipping transformation.", table_name="crypto_categories_fact")
             return
 
-        self._run_build_step("crypto_category_fact", self.__prepare_fact_crypto_category_df, "crypto_category_fact", mode="append")
+        self._run_build_step(
+            "crypto_category_fact", self.__prepare_fact_crypto_category_df, "crypto_category_fact", mode="append"
+        )
 
     def build_crypto_category_link(self) -> None:
         """
@@ -290,25 +296,28 @@ class CryptoTransformer(BaseTransformer):
 
         snapshot_paths = self.find_latest_data_files("crypto_category_data")
         if not snapshot_paths:
-            self.log("No snapshot available for crypto_category_link. Skipping",table_name="crypto_categories_link")
+            self.log("No snapshot available for crypto_category_link. Skipping", table_name="crypto_categories_link")
             return None
 
         last_snapshot = snapshot_paths[0]
         self.last_map_snapshot = last_snapshot
-        
+
         if last_snapshot is None:
-            self.log("[ERROR] No snapshot set for crypto_category_link. Aborting.",table_name="crypto_categories_link")
+            self.log("[ERROR] No snapshot set for crypto_category_link. Aborting.", table_name="crypto_categories_link")
             return
 
         if not self.should_transform("crypto_category_link", last_snapshot, force=False, daily_comparison=False):
-            self.log("crypto_category_link is up to date. Skipping transformation.",table_name="crypto_categories_link")
+            self.log("crypto_category_link is up to date. Skipping transformation.", table_name="crypto_categories_link")
             return
 
-        self._run_build_step("crypto_category_link", lambda: self.__prepare_dim_crypto_category_link_df(last_snapshot), "crypto_category_link")
-        
+        self._run_build_step(
+            "crypto_category_link", lambda: self.__prepare_dim_crypto_category_link_df(last_snapshot), "crypto_category_link"
+        )
+
     # --------------------------------------------------------------------
-    #                       Internal preparations
+    #                    Internal Transformation Methods
     # --------------------------------------------------------------------
+
     def __prepare_dim_crypto_id_df(self, latest_snapshot: str) -> Optional[Tuple[DataFrame, str]]:
         """
         Prepares the dim_crypto_identity table from the latest crypto_map snapshot.
@@ -331,19 +340,17 @@ class CryptoTransformer(BaseTransformer):
         self.last_map_snapshot = latest_snapshot
 
         # Define strict schema
-        crypto_id_schema = StructType(
-            [
-                StructField("id", LongType(), True),
-                StructField("name", StringType(), True),
-                StructField("symbol", StringType(), True),
-                StructField("platform_id", DoubleType(), True),
-                StructField("platform_name", StringType(), True),
-                StructField("platform_symbol", StringType(), True),
-                StructField("platform_token_address",StringType(),True)
-            ]
-        )
+        crypto_id_schema = StructType([
+                                StructField("id", LongType(), True),
+                                StructField("name", StringType(), True),
+                                StructField("symbol", StringType(), True),
+                                StructField("platform_id", DoubleType(), True),
+                                StructField("platform_name", StringType(), True),
+                                StructField("platform_symbol", StringType(), True),
+                                StructField("platform_token_address", StringType(), True),
+                            ])
 
-        self.log(f"Reading latest crypto_map snapshot: {latest_snapshot.name}",table_name="crypto_id_dim")
+        self.log(f"Reading latest crypto_map snapshot: {latest_snapshot.name}", table_name="crypto_id_dim")
 
         # Read with schema
         try:
@@ -353,16 +360,25 @@ class CryptoTransformer(BaseTransformer):
             self.log(f"[ERROR] Failed to read Parquet file at {latest_snapshot} -> {e}", table_name="crypto_id_dim")
             return None
 
-        crypto_id_columns = ["crypto_id", "name", "symbol", "platform_id", "platform_name", "platform_symbol", "platform_token_address"]
+        crypto_id_columns = [
+            "crypto_id",
+            "name",
+            "symbol",
+            "platform_id",
+            "platform_name",
+            "platform_symbol",
+            "platform_token_address",
+        ]
+
         crypto_id_df = (
-                df_raw.withColumn("crypto_id", col("id").cast("int"))
-                .withColumn("platform_id", col("platform_id").cast("int"))
-                .select(*crypto_id_columns)
-                .dropna(subset=["crypto_id"])
-                .dropDuplicates(subset=["crypto_id"])
+            df_raw.withColumn("crypto_id", col("id").cast("int"))
+            .withColumn("platform_id", col("platform_id").cast("int"))
+            .select(*crypto_id_columns)
+            .dropna(subset=["crypto_id"])
+            .dropDuplicates(subset=["crypto_id"])
         )
 
-        self.log_dataframe_info(crypto_id_df, "Cleaned dim_crypto_identity",table_name="crypto_id_dim")
+        self.log_dataframe_info(crypto_id_df, "Cleaned dim_crypto_identity", table_name="crypto_id_dim")
 
         return crypto_id_df, latest_snapshot
 
@@ -375,51 +391,53 @@ class CryptoTransformer(BaseTransformer):
 
         This method:
         - Loads dynamic mapping fields (rank, status, historical data)
-        - Ensures primary key uniqueness on (crypto_id, date_snapshot)
+        - Ensures primary key uniqueness on (crypto_id, snapshot_timestamp)
         - Logs cleaned output DataFrame
 
         Returns:
             Optional[DataFrame]: Transformed DataFrame, or None if snapshot is missing or fails to load.
         """
-        self.log(" > Starting transformation: dim_crypto_map",table_name="crypto_map_dim")
+        self.log(" > Starting transformation: dim_crypto_map", table_name="crypto_map_dim")
 
         if self.last_map_snapshot is None:
-            self.log("[ERROR] self.last_map_snapshot not found — run __prepare_dim_crypto_identity_df first.",table_name="crypto_map_dim")
+            self.log(
+                "[ERROR] self.last_map_snapshot not found — run __prepare_dim_crypto_identity_df first.",
+                table_name="crypto_map_dim",
+            )
             return None
-        
-        crypto_map_schema = StructType(
-            [
-                StructField("id", LongType(), True),
-                StructField("rank", LongType(), True),
-                StructField("is_active", LongType(), True),
-                StructField("last_historical_data", StringType(), True), # to timestamp or data 
-                StructField("date_snapshot", StringType(), True), # to timestamp or data 
-            ]
-        )
 
-        self.log(f"Reading snapshot from: {self.last_map_snapshot.name}",table_name="crypto_map_dim")
+        crypto_map_schema = StructType([
+                                StructField("id", LongType(), True),
+                                StructField("rank", LongType(), True),
+                                StructField("is_active", LongType(), True),
+                                StructField("last_historical_data", StringType(), True),  
+                                StructField("date_snapshot", StringType(), True),        
+                            ])
+
+        self.log(f"Reading snapshot from: {self.last_map_snapshot.name}", table_name="crypto_map_dim")
 
         try:
             df_raw = self.spark.read.schema(crypto_map_schema).parquet(str(self.last_map_snapshot))
 
         except Exception as e:
-            self.log(f"[ERROR] Failed to read Parquet file at {self.last_map_snapshot} -> {e}",table_name="crypto_map_dim")
+            self.log(f"[ERROR] Failed to read Parquet file at {self.last_map_snapshot} -> {e}", table_name="crypto_map_dim")
             return None
 
-        crypto_map_columns = ["crypto_id", "date_snapshot", "rank", "is_active", "last_historical_data"]
+        crypto_map_columns = ["crypto_id", "snapshot_timestamp", "snapshot_str", "rank", "is_active", "last_historical_data"]
 
         crypto_map_df = (
             df_raw.withColumn("crypto_id", col("id").cast("int"))
             .withColumn("rank", col("rank").cast("int"))
             .withColumn("is_active", col("is_active").cast("int"))
-            .withColumn("date_snapshot",to_timestamp(col("date_snapshot")))
-            .withColumn("last_historical_data",to_timestamp(col("last_historical_data")))
+            .withColumn("snapshot_timestamp", to_timestamp("date_snapshot"))
+            .withColumn("snapshot_str", date_format(col("snapshot_timestamp"), "yyyy-MM-dd HH:mm:ss"))
+            .withColumn("last_historical_data", date_format(to_timestamp(col("last_historical_data")), "yyyy-MM-dd HH:mm:ss"))
             .select(*crypto_map_columns)
-            .dropna(subset=["crypto_id", "date_snapshot"])
-            .dropDuplicates(subset=["crypto_id", "date_snapshot"])
+            .dropna(subset=["crypto_id", "snapshot_timestamp"])
+            .dropDuplicates(subset=["crypto_id", "snapshot_timestamp"])
         )
 
-        self.log_dataframe_info(crypto_map_df, "Cleaned dim_crypto_map",table_name="crypto_map_dim")
+        self.log_dataframe_info(crypto_map_df, "Cleaned dim_crypto_map", table_name="crypto_map_dim")
 
         return crypto_map_df, self.last_map_snapshot
 
@@ -442,41 +460,40 @@ class CryptoTransformer(BaseTransformer):
         """
         self.log(" > Starting transformation: dim_crypto_info", table_name="crypto_info_dim")
 
-        schema = StructType(
-            [
-                StructField("id", LongType(), True),  # To be cast to Integer
-                StructField("slug", StringType(), True),
-                StructField("category", StringType(), True),
-                StructField("tags", StringType(), True),
-                StructField("description", StringType(), True),
-                StructField("date_launched", StringType(), True), # to timestamp 
-                StructField("date_added", StringType(), True), # to timestamp 
-                StructField("logo", StringType(), True),
-                StructField("website", StringType(), True),
-                StructField("technical_doc", StringType(), True),
-                StructField("twitter", StringType(), True),
-                StructField("explorer", StringType(), True),
-                StructField("source_code", StringType(), True),
-                StructField("date_snapshot", StringType(), True), # to timestamp or data 
-            ]
-        )
+        schema = StructType([
+                        StructField("id", LongType(), True),  
+                        StructField("slug", StringType(), True),
+                        StructField("category", StringType(), True),
+                        StructField("tags", StringType(), True),
+                        StructField("description", StringType(), True),
+                        StructField("date_launched", StringType(), True),  
+                        StructField("date_added", StringType(), True), 
+                        StructField("logo", StringType(), True),
+                        StructField("website", StringType(), True),
+                        StructField("technical_doc", StringType(), True),
+                        StructField("twitter", StringType(), True),
+                        StructField("explorer", StringType(), True),
+                        StructField("source_code", StringType(), True),
+                        StructField("date_snapshot", StringType(), True), 
+                    ])
 
-        self.log(f"Reading latest crypto_map snapshot: {last_snapshot.name}",table_name="crypto_info_dim")
+        self.log(f"Reading latest crypto_map snapshot: {last_snapshot.name}", table_name="crypto_info_dim")
 
         try:
             df_raw = self.spark.read.schema(schema=schema).parquet(str(last_snapshot))
 
         except Exception as e:
-            self.log(f"[ERROR] Failed to read Parquet file at {last_snapshot} -> {e}",table_name="crypto_info_dim")
+            self.log(f"[ERROR] Failed to read Parquet file at {last_snapshot} -> {e}", table_name="crypto_info_dim")
             return None
 
         # Help to drop unwanted colmuns and to keep the other orderd
         info_columns = [
             "crypto_id",
             "slug",
+            "snapshot_timestamp",
+            "snapshot_date",
             "date_launched",
             "date_added",
-            "date_snapshot",
             "category",
             "tags",
             "description",
@@ -490,9 +507,11 @@ class CryptoTransformer(BaseTransformer):
 
         crypto_info_df = (
             df_raw.withColumn("crypto_id", col("id").cast("int"))
-            .withColumn("date_snapshot",to_timestamp(col("date_snapshot")))
-            .withColumn("date_launched",to_timestamp(col("date_launched")))
-            .withColumn("date_added",to_timestamp(col("date_added")))
+            .withColumn("snapshot_timestamp", to_timestamp("date_snapshot"))
+            .withColumn("snapshot_date", to_date(col("snapshot_timestamp")))
+            .withColumn("date_launched", to_date(col("date_launched")))
+            .withColumn("date_added", to_date(col("date_added")))
+            .withColumn("tags", split(col("tags"), ","))
             .withColumnRenamed("logo", "logo_url")
             .withColumnRenamed("website", "website_url")
             .withColumnRenamed("technical_doc", "technical_doc_url")
@@ -504,12 +523,12 @@ class CryptoTransformer(BaseTransformer):
             .dropDuplicates(subset=["crypto_id"])
         )
 
-        self.log_dataframe_info(crypto_info_df, "Cleaned dim_crypto_info",table_name="crypto_info_dim")
-        self.log("dim_crypto_info transformation prepared successfully.",table_name="crypto_info_dim")
+        self.log_dataframe_info(crypto_info_df, "Cleaned dim_crypto_info", table_name="crypto_info_dim")
+        self.log("dim_crypto_info transformation prepared successfully.", table_name="crypto_info_dim")
 
         return crypto_info_df, last_snapshot
 
-    def __prepare_fact_crypto_market_df(self, last_batch : List[str]) -> Optional[Tuple[DataFrame, str]]:
+    def __prepare_fact_crypto_market_df(self, last_batch: List[str]) -> Optional[Tuple[DataFrame, str]]:
         """
         Prepares the fact_crypto_market table from a batch of raw Parquet snapshots.
 
@@ -526,132 +545,147 @@ class CryptoTransformer(BaseTransformer):
         Returns:
             Optional[Tuple[DataFrame, str]]: Enriched DataFrame and the associated batch identifier (file path).
         """
-        self.log(" > Starting transformation: fact_crypto_market",table_name="crypto_market_fact")
+        self.log(" > Starting transformation: fact_crypto_market", table_name="crypto_market_fact")
 
         # Define the expected schema for raw crypto market data
-        schema = StructType(
-            [
-                StructField("id", LongType(), True),  # Will be renamed to crypto_id
-                StructField("cmc_rank",LongType(), True),
-                StructField("num_market_pairs",DoubleType(), True),
-                StructField("circulating_supply", DoubleType(), True),
-                StructField("total_supply", DoubleType(), True),
-                StructField("max_supply", DoubleType(), True),
-                StructField("infinite_supply", BooleanType(), True),
-                StructField("self_reported_circulating_supply", DoubleType(), True),
-                StructField("self_reported_market_cap", DoubleType(), True),
-                StructField("date_added", StringType(), True), # To be casted to timestamp
-                StructField("tags", StringType(), True), # tags separated by , in a string -> exploded in a array of strings
-                StructField("platform_id", DoubleType(), True),
-                StructField("price_usd", DoubleType(), True),
-                StructField("volume_24h_usd", DoubleType(), True),
-                StructField("volume_change_24h", DoubleType(), True),
-                StructField("percent_change_1h_usd", DoubleType(), True),
-                StructField("percent_change_24h_usd", DoubleType(), True),
-                StructField("percent_change_7d_usd", DoubleType(), True),
-                StructField("market_cap_usd", DoubleType(), True),
-                StructField("market_cap_dominance_usd", DoubleType(), True),
-                StructField("fully_diluted_market_cap_usd", DoubleType(), True),
-                StructField("last_updated_usd", StringType(), True), # To be casted to timestamp
-                StructField("date_snapshot", StringType(), True), # To be casted to timestamp
-                StructField("batch_index", LongType(), True),  
-            ]
-        )
+        schema = StructType([
+                        StructField("id", LongType(), True),  
+                        StructField("cmc_rank", LongType(), True),
+                        StructField("num_market_pairs", DoubleType(), True),
+                        StructField("circulating_supply", DoubleType(), True),
+                        StructField("total_supply", DoubleType(), True),
+                        StructField("max_supply", DoubleType(), True),
+                        StructField("infinite_supply", BooleanType(), True),
+                        StructField("self_reported_circulating_supply", DoubleType(), True),
+                        StructField("self_reported_market_cap", DoubleType(), True),
+                        StructField("platform_id", DoubleType(), True),
+                        StructField("price_usd", DoubleType(), True),
+                        StructField("volume_24h_usd", DoubleType(), True),
+                        StructField("volume_change_24h", DoubleType(), True),
+                        StructField("percent_change_1h_usd", DoubleType(), True),
+                        StructField("percent_change_24h_usd", DoubleType(), True),
+                        StructField("percent_change_7d_usd", DoubleType(), True),
+                        StructField("market_cap_usd", DoubleType(), True),
+                        StructField("market_cap_dominance_usd", DoubleType(), True),
+                        StructField("fully_diluted_market_cap_usd", DoubleType(), True),
+                        StructField("last_updated_usd", StringType(), True),  
+                        StructField("date_snapshot", StringType(), True), 
+                        StructField("batch_index", LongType(), True),
+                    ])
+        
         # Define the final column selection and order
         selected_columns = [
-            "crypto_id", "date_snapshot", "batch_index", "cmc_rank",
-            "date_added", "last_updated_usd", "platform_id",
-            "circulating_supply", "total_supply", "max_supply", "infinite_supply",
-            "self_reported_circulating_supply", "price_usd", "volume_24h_usd", "volume_change_24h",
-            "percent_change_1h_usd", "percent_change_24h_usd", "percent_change_7d_usd",
-            "market_cap_usd", "self_reported_market_cap", "market_cap_dominance_usd",
-            "fully_diluted_market_cap_usd", "num_market_pairs", "tags"
+            "crypto_id",
+            "snapshot_timestamp",
+            "snapshot_str",
+            "batch_index",
+            "cmc_rank",
+            "last_updated_usd",
+            "platform_id",
+            "circulating_supply",
+            "total_supply",
+            "max_supply",
+            "infinite_supply",
+            "self_reported_circulating_supply",
+            "price_usd",
+            "volume_24h_usd",
+            "volume_change_24h",
+            "percent_change_1h_usd",
+            "percent_change_24h_usd",
+            "percent_change_7d_usd",
+            "market_cap_usd",
+            "self_reported_market_cap",
+            "market_cap_dominance_usd",
+            "fully_diluted_market_cap_usd",
+            "num_market_pairs",
         ]
 
-        try :
+        try:
             # Load the first snapshot file to initialize the DataFrame
-            self.log(f"[BATCH INIT] Reading first snapshot of crypto_market_fact batch — total files: {len(last_batch)}",table_name="crypto_market_fact")
+            self.log(
+                f"[BATCH INIT] Reading first snapshot of crypto_market_fact batch — total files: {len(last_batch)}",
+                table_name="crypto_market_fact",
+            )
             df_combined = self.spark.read.schema(schema).parquet(str(last_batch[0]))
 
             # Union all remaining snapshot files
-            for i, snapshot_path in enumerate(last_batch[1:]) :
-                self.log(f"[{i+2}/{len(last_batch)}] Merging snapshot file: {snapshot_path} - Remaining: {len(last_batch) -i -2}",table_name="crypto_market_fact")
+            for i, snapshot_path in enumerate(last_batch[1:]):
+                self.log(
+                    f"[{i+2}/{len(last_batch)}] Merging snapshot file: {snapshot_path} - Remaining: {len(last_batch) -i -2}",
+                    table_name="crypto_market_fact",
+                )
                 df_next = self.spark.read.schema(schema).parquet(str(snapshot_path))
                 df_combined = df_combined.unionByName(df_next, allowMissingColumns=True)
 
         except Exception as e:
-            self.log(f"[ERROR] Failed to read or merge snapshot parquet files -> {e}",table_name="crypto_market_fact")
+            self.log(f"[ERROR] Failed to read or merge snapshot parquet files -> {e}", table_name="crypto_market_fact")
             return None
-        
+
         try:
             # Clean and normalize fields
             df_cleaned = (
-                df_combined
-                .withColumn("crypto_id", col("id").cast("int"))
-                .withColumn("date_snapshot", to_timestamp(col("date_snapshot")))
+                df_combined.withColumn("crypto_id", col("id").cast("int"))
+                .withColumn("snapshot_timestamp", to_timestamp("date_snapshot"))
+                .withColumn("snapshot_str", date_format(col("snapshot_timestamp"), "yyyy-MM-dd HH:mm:ss"))
                 .withColumn("platform_id", col("platform_id").cast("int"))
                 .withColumn("batch_index", col("batch_index").cast("int"))
                 .withColumn("cmc_rank", col("cmc_rank").cast("int"))
-                .withColumn("tags",split(col("tags"),","))
-                .withColumn("date_added", to_timestamp(col("date_added")))
-                .withColumn("last_updated_usd", to_timestamp(col("last_updated_usd")))
+                .withColumn("last_updated_usd", date_format(to_timestamp(col("last_updated_usd")), "yyyy-MM-dd HH:mm:ss"))
                 .drop("id")
-                .dropna(subset=["crypto_id", "date_snapshot"])
-                .dropDuplicates(subset=["crypto_id", "date_snapshot"])
+                .dropna(subset=["crypto_id", "snapshot_timestamp"])
+                .dropDuplicates(subset=["crypto_id", "snapshot_timestamp"])
                 .select(*selected_columns)
             )
 
-            self.log("Data cleaning and column normalization done.",table_name="crypto_market_fact")
+            self.log("Data cleaning and column normalization done.", table_name="crypto_market_fact")
 
             # Add derived KPIs
             df_enriched = (
                 df_cleaned
-
                 # KPI 1 : volume_to_market_cap_ratio
                 .withColumn(
                     "volume_to_market_cap_ratio",
                     when(
                         col("market_cap_usd").isNotNull() & (col("market_cap_usd") != 0),
-                        col("volume_24h_usd") / col("market_cap_usd")
-                    ).otherwise(lit(0.0))
+                        col("volume_24h_usd") / col("market_cap_usd"),
+                    ).otherwise(lit(0.0)),
                 )
-
                 # KPI 2 : missing_supply_ratio
                 .withColumn(
                     "missing_supply_ratio",
                     when(
                         col("total_supply").isNotNull() & (col("total_supply") != 0) & col("circulating_supply").isNotNull(),
-                        (col("total_supply") - col("circulating_supply")) / col("total_supply")
-                    ).otherwise(lit(0.0))
+                        (col("total_supply") - col("circulating_supply")) / col("total_supply"),
+                    ).otherwise(lit(0.0)),
                 )
-
                 # KPI 3 : supply_utilization
                 .withColumn(
                     "supply_utilization",
                     when(
                         col("max_supply").isNotNull() & (col("max_supply") != 0) & col("circulating_supply").isNotNull(),
-                        col("circulating_supply") / col("max_supply")
-                    ).otherwise(lit(0.0))
+                        col("circulating_supply") / col("max_supply"),
+                    ).otherwise(lit(0.0)),
                 )
-
                 # KPI 4 : fully_diluted_cap_ratio
                 .withColumn(
                     "fully_diluted_cap_ratio",
                     when(
-                        col("market_cap_usd").isNotNull() & (col("market_cap_usd") != 0) & col("fully_diluted_market_cap_usd").isNotNull(),
-                        col("fully_diluted_market_cap_usd") / col("market_cap_usd")
-                    ).otherwise(lit(0.0))
+                        col("market_cap_usd").isNotNull()
+                        & (col("market_cap_usd") != 0)
+                        & col("fully_diluted_market_cap_usd").isNotNull(),
+                        col("fully_diluted_market_cap_usd") / col("market_cap_usd"),
+                    ).otherwise(lit(0.0)),
                 )
             )
 
-            self.log_dataframe_info(df_enriched, "Cleaned & enriched fact_crypto_market_df",table_name="crypto_market_fact")
+            self.log_dataframe_info(df_enriched, "Cleaned & enriched fact_crypto_market_df", table_name="crypto_market_fact")
             return df_enriched, last_batch[0]
 
         except Exception as e:
-            self.log(f"[ERROR] Failed during DataFrame cleaning or KPI enrichment -> {e}",table_name="crypto_market_fact")
+            self.log(f"[ERROR] Failed during DataFrame cleaning or KPI enrichment -> {e}", table_name="crypto_market_fact")
             return None, None
 
-    def __prepare_dim_crypto_categories_df(self, last_snapshot : str) -> Optional[Tuple[DataFrame, str]]:
+    def __prepare_dim_crypto_categories_df(self, last_snapshot: str) -> Optional[Tuple[DataFrame, str]]:
         """
         Prepares the dim_crypto_categories table and broadcasts the associated metrics for use in the fact table.
 
@@ -667,67 +701,74 @@ class CryptoTransformer(BaseTransformer):
         Returns:
             Tuple[DataFrame, str]: Cleaned dimension DataFrame and the snapshot path, or None if loading fails.
         """
-        self.log(" > Starting transformation: crypto_categories_dim",table_name="crypto_categories_dim")
-        
+        self.log(" > Starting transformation: crypto_categories_dim", table_name="crypto_categories_dim")
 
         # Store the latest snapshot path for reuse by dependent methods (fact_crypto_category)
         self.last_categories_snapshot = last_snapshot
 
         # Define strict schema
-        categories_schema = StructType(
-            [
-                StructField("category_id", StringType(), True),
-                StructField("name", StringType(), True),
-                StructField("title", StringType(), True),
-                StructField("description", StringType(), True),
-                StructField("num_tokens", DoubleType(), True),
-                StructField("avg_price_change", DoubleType(), True),
-                StructField("market_cap", DoubleType(), True),
-                StructField("market_cap_change", DoubleType(), True),
-                StructField("volume", DoubleType(), True),
-                StructField("volume_change", DoubleType(), True),
-                StructField("last_updated", StringType(), True), # to timestamp
-                StructField("date_snapshot", StringType(), True), # to timestamp
+        categories_schema = StructType([
+                                StructField("category_id", StringType(), True),
+                                StructField("name", StringType(), True),
+                                StructField("title", StringType(), True),
+                                StructField("description", StringType(), True),
+                                StructField("num_tokens", DoubleType(), True),
+                                StructField("avg_price_change", DoubleType(), True),
+                                StructField("market_cap", DoubleType(), True),
+                                StructField("market_cap_change", DoubleType(), True),
+                                StructField("volume", DoubleType(), True),
+                                StructField("volume_change", DoubleType(), True),
+                                StructField("last_updated", StringType(), True),  
+                                StructField("date_snapshot", StringType(), True),  
+                            ])
 
-            ]
-        )
-
-        self.log(f"Reading latest crypto_categories_dim snapshot: {last_snapshot.name}",table_name="crypto_categories_dim")
+        self.log(f"Reading latest crypto_categories_dim snapshot: {last_snapshot.name}", table_name="crypto_categories_dim")
 
         # Read with schema
         try:
             df_raw = self.spark.read.schema(categories_schema).parquet(str(last_snapshot))
-   
+
         except Exception as e:
-            self.log(f"[ERROR] Failed to read Parquet file at {last_snapshot} -> {e}",table_name="crypto_categories_dim")
+            self.log(f"[ERROR] Failed to read Parquet file at {last_snapshot} -> {e}", table_name="crypto_categories_dim")
             return None
-        
+
         # --- Build dim_crypto_category table ---
-        dim_columns = ["category_id","name","title","description"]
-        dim_df = df_raw.select(*dim_columns) \
-                    .dropna(subset=["category_id"]) \
-                    .dropDuplicates(subset=["category_id"])
-        self.log_dataframe_info(dim_df, "Cleaned dim_crypto_categories",table_name="crypto_categories_dim")
-        
-         # --- Broadcast the metrics columns in destination to the fact table ---
+        dim_columns = ["category_id", "name", "title", "description"]
+        dim_df = df_raw.select(*dim_columns).dropna(subset=["category_id"]).dropDuplicates(subset=["category_id"])
+        self.log_dataframe_info(dim_df, "Cleaned dim_crypto_categories", table_name="crypto_categories_dim")
+
+        # --- Broadcast the metrics columns in destination to the fact table ---
         fact_columns = [
-            "category_id","date_snapshot","num_tokens","avg_price_change",
-            "market_cap","market_cap_change","volume",
-            "volume_change","last_updated"
+            "category_id",
+            "snapshot_timestamp",
+            "snapshot_str",
+            "num_tokens",
+            "avg_price_change",
+            "market_cap",
+            "market_cap_change",
+            "volume",
+            "volume_change",
+            "last_updated",
         ]
-        category_metrics_df = df_raw.select(*fact_columns) \
-                        .withColumn("num_tokens",col("num_tokens").cast("int")) \
-                        .withColumn("last_updated",to_timestamp(col("last_updated"))) \
-                        .withColumn("date_snapshot",to_timestamp(col("date_snapshot"))) \
-                        .dropna(subset=["category_id","date_snapshot"]) \
-                        .dropDuplicates(subset=["category_id","date_snapshot"])
-    
+        category_metrics_df = (
+            df_raw
+            .withColumn("num_tokens", col("num_tokens").cast("int"))
+            .withColumn("last_updated", date_format(to_timestamp(col("last_updated")), "yyyy-MM-dd HH:mm:ss"))
+            .withColumn("snapshot_timestamp", to_timestamp("date_snapshot"))
+            .withColumn("snapshot_str", date_format(col("snapshot_timestamp"), "yyyy-MM-dd HH:mm:ss"))
+            .select(*fact_columns)
+            .dropna(subset=["category_id", "snapshot_timestamp"])
+            .dropDuplicates(subset=["category_id", "snapshot_timestamp"])
+        )
+
         self.broadcasted_crypto_categories_metrics = broadcast(category_metrics_df)
-        self.log_dataframe_info(category_metrics_df, "Cleaned broadcasted_crypto_categories_metrics",table_name="crypto_categories_dim")
+        self.log_dataframe_info(
+            category_metrics_df, "Cleaned broadcasted_crypto_categories_metrics", table_name="crypto_categories_dim"
+        )
 
         return dim_df, last_snapshot
 
-    def __prepare_dim_crypto_category_link_df(self, last_snapshot : str) -> Optional[Tuple[DataFrame, str]]:
+    def __prepare_dim_crypto_category_link_df(self, last_snapshot: str) -> Optional[Tuple[DataFrame, str]]:
         """
         Prepares the dim_crypto_category_link table, which captures the many-to-many relationship
         between cryptocurrencies and their associated categories.
@@ -744,35 +785,35 @@ class CryptoTransformer(BaseTransformer):
         Returns:
             Tuple[DataFrame, str]: Cleaned link DataFrame and the snapshot path, or None if loading fails.
         """
-        self.log(" > Starting transformation: crypto_category_link",table_name="crypto_categories_link")
+        self.log(" > Starting transformation: crypto_category_link", table_name="crypto_categories_link")
 
         # Define strict schema
-        crypto_category_link_schema = StructType(
-            [
-                StructField("crypto_id", LongType(), True),
-                StructField("category_id", StringType(), True),
-            ]
-        )
+        crypto_category_link_schema = StructType([
+                                                StructField("crypto_id", LongType(), True),
+                                                StructField("category_id", StringType(), True),
+                                            ])
 
-        self.log(f"Reading latest crypto_category_link snapshot: {last_snapshot.name}",table_name="crypto_categories_link")
+        self.log(f"Reading latest crypto_category_link snapshot: {last_snapshot.name}", table_name="crypto_categories_link")
 
         # Read with schema
         try:
             df_raw = self.spark.read.schema(crypto_category_link_schema).parquet(str(last_snapshot))
-            
+
         except Exception as e:
-            self.log(f"[ERROR] Failed to read Parquet file at {last_snapshot} -> {e}",table_name="crypto_categories_link")
+            self.log(f"[ERROR] Failed to read Parquet file at {last_snapshot} -> {e}", table_name="crypto_categories_link")
             return None
-        
-        link_crypto_category_df = df_raw.withColumn("crypto_id",col("crypto_id").cast("int")) \
-                                        .dropna(subset=["crypto_id","category_id"]) \
-                                        .dropDuplicates(subset=["crypto_id","category_id"])
-        
-        self.log_dataframe_info(link_crypto_category_df, "Cleaned crypto_category_link",table_name="crypto_categories_link")
+
+        link_crypto_category_df = (
+            df_raw.withColumn("crypto_id", col("crypto_id").cast("int"))
+            .dropna(subset=["crypto_id", "category_id"])
+            .dropDuplicates(subset=["crypto_id", "category_id"])
+        )
+
+        self.log_dataframe_info(link_crypto_category_df, "Cleaned crypto_category_link", table_name="crypto_categories_link")
 
         return link_crypto_category_df, last_snapshot
-    
-    def __prepare_fact_crypto_category_df(self,) -> Optional[Tuple[DataFrame, str]]:
+
+    def __prepare_fact_crypto_category_df(self) -> Optional[Tuple[DataFrame, str]]:
         """
         Prepares the fact_crypto_category table using the broadcasted metrics from the category snapshot.
 
@@ -789,68 +830,79 @@ class CryptoTransformer(BaseTransformer):
         Returns:
             Tuple[DataFrame, str]: Enriched fact DataFrame and the snapshot path, or None if the metrics are unavailable.
         """
-        self.log(" > Starting transformation: fact_crypto_category (append mode from broadcasted categories)",table_name="crypto_categories_fact")
+        self.log(
+            " > Starting transformation: fact_crypto_category (append mode from broadcasted categories)",
+            table_name="crypto_categories_fact",
+        )
 
-        if self.broadcasted_crypto_categories_metrics is not None :
-            self.log("[OK] Found broadcasted_crypto_categories_metrics. Proceeding with KPI calculations for fact_crypto_category.",table_name="crypto_categories_fact")
+        if self.broadcasted_crypto_categories_metrics is not None:
+            self.log(
+                "[OK] Found broadcasted_crypto_categories_metrics. Proceeding with KPI calculations for fact_crypto_category.",
+                table_name="crypto_categories_fact",
+            )
             metrics_df = (
                 self.broadcasted_crypto_categories_metrics
-
                 # KPI 1 : volume_to_market_cap_ratio
                 .withColumn(
                     "volume_to_market_cap_ratio",
-                    when(col("market_cap").isNotNull() & (col("market_cap") != 0),
-                        col("volume") / col("market_cap"))
-                    .otherwise(lit(0.0))
+                    when(col("market_cap").isNotNull() & (col("market_cap") != 0), col("volume") / col("market_cap")).otherwise(
+                        lit(0.0)
+                    ),
                 )
-
                 # KPI 2 : dominance_per_token
                 .withColumn(
                     "dominance_per_token",
-                    when(col("num_tokens").isNotNull() & (col("num_tokens") != 0),
-                        col("market_cap") / col("num_tokens"))
-                    .otherwise(lit(0.0))
+                    when(
+                        col("num_tokens").isNotNull() & (col("num_tokens") != 0), col("market_cap") / col("num_tokens")
+                    ).otherwise(lit(0.0)),
                 )
-
                 # KPI 3 : market_cap_change_rate
                 .withColumn(
                     "market_cap_change_rate",
-                    when(col("market_cap").isNotNull() & (col("market_cap") != 0),
-                        col("market_cap_change") / col("market_cap"))
-                    .otherwise(lit(0.0))
+                    when(
+                        col("market_cap").isNotNull() & (col("market_cap") != 0), col("market_cap_change") / col("market_cap")
+                    ).otherwise(lit(0.0)),
                 )
-
                 # KPI 4 : volume_change_rate
                 .withColumn(
                     "volume_change_rate",
-                    when(col("volume").isNotNull() & (col("volume") != 0),
-                        col("volume_change") / col("volume"))
-                    .otherwise(lit(0.0))
+                    when(col("volume").isNotNull() & (col("volume") != 0), col("volume_change") / col("volume")).otherwise(
+                        lit(0.0)
+                    ),
                 )
-
                 # KPI 5 : price_change_index
                 .withColumn(
                     "price_change_index",
-                    when(col("avg_price_change").isNotNull() & col("num_tokens").isNotNull(),
-                        col("avg_price_change") * col("num_tokens"))
-                    .otherwise(lit(0.0))
+                    when(
+                        col("avg_price_change").isNotNull() & col("num_tokens").isNotNull(),
+                        col("avg_price_change") * col("num_tokens"),
+                    ).otherwise(lit(0.0)),
                 )
             )
 
             metrics_df = metrics_df.select(
-                                "category_id", "date_snapshot",
-                                "num_tokens", "avg_price_change",
-                                "market_cap", "market_cap_change",
-                                "volume", "volume_change", "last_updated",
-                                "volume_to_market_cap_ratio", "dominance_per_token",
-                                "market_cap_change_rate", "volume_change_rate", "price_change_index"
-                            )
+                "category_id",
+                "snapshot_timestamp",
+                "snapshot_str",
+                "num_tokens",
+                "avg_price_change",
+                "market_cap",
+                "market_cap_change",
+                "volume",
+                "volume_change",
+                "last_updated",
+                "volume_to_market_cap_ratio",
+                "dominance_per_token",
+                "market_cap_change_rate",
+                "volume_change_rate",
+                "price_change_index",
+            )
         else:
-            self.log("[ERROR] broadcasted_crypto_categories_metrics is not available. Please run build_crypto_categories_dim() first.",table_name="crypto_categories_fact")
+            self.log(
+                "[ERROR] broadcasted_crypto_categories_metrics is not available. Please run build_crypto_categories_dim() first.",
+                table_name="crypto_categories_fact",
+            )
             return None, None
 
-
-        self.log_dataframe_info(metrics_df, "Cleaned fact_crypto_category",table_name="crypto_categories_fact")
+        self.log_dataframe_info(metrics_df, "Cleaned fact_crypto_category", table_name="crypto_categories_fact")
         return metrics_df, self.last_categories_snapshot
-
-    
