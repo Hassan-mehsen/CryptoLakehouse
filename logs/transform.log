@@ -268,3 +268,64 @@
 ==================================================
               End CryptoTransformer               
 ==================================================
+
+"                         First Run _ Full Execution Summary                      "
+
+
+"These logs show a complete and successful run of the GlobalMetricsTransformer pipeline:"
+
+  " 1.The transformer correctly loaded the latest .parquet snapshot from global_metrics_data."
+  " 2.The raw DataFrame was read, cleaned, enriched with KPIs, and written to the Silver layer."
+  " 3.Column renaming, type casting, and business KPIs were applied and logged step by step."
+  " 4.Timestamps were parsed and formatted for full DWH and BI compatibility."
+
+"This execution confirms:"
+
+  " 1.Snapshot freshness detection via .jsonl metadata worked as expected."
+  " 2.Each processing stage (rename -> cast -> enrich -> write) was completed successfully."
+  " 3.Delta file was written in append mode without any issues."
+  " 4.Metadata was updated, enabling future runs to intelligently skip already-processed snapshots."
+
+==================================================
+         Running GlobalMetricsTransformer         
+==================================================
+[2025-05-11 17:54:22] [TRANSFORM] [GLOBALMETRICSTRANSFORMER] Found 1 parquet file(s) in global_metrics_data (limit=1) 
+[2025-05-11 17:54:22] [TRANSFORM] [GLOBALMETRICSTRANSFORMER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/global_metrics/fact_global_market.jsonl 
+[2025-05-11 17:54:22] [TRANSFORM] [GLOBALMETRICSTRANSFORMER] Last .parquet record at : 2025-05-11 16:01:38 and last transformed at 2025-03-11 17:43:17.317046 
+[2025-05-11 17:54:22] [TRANSFORM] [GLOBALMETRICSTRANSFORMER] [global_market_fact] > Starting transformation: global_market_fact... 
+[2025-05-11 17:54:22] [TRANSFORM] [GLOBALMETRICSTRANSFORMER] [global_market_fact] Reading global_metrics snapshot: global_metrics-2025-05-11_16-01-38.parquet 
+[2025-05-11 17:54:22] [TRANSFORM] [GLOBALMETRICSTRANSFORMER] [global_market_fact] Successfully loaded global_metrics raw DataFrame 
+[2025-05-11 17:54:22] [TRANSFORM] [GLOBALMETRICSTRANSFORMER] [global_market_fact] [After renaming columns] Row count: 1, Schema: struct<date_snapshot:string,last_updated:string,btc_dominance:double,eth_dominance:double,active_cryptocurrencies:bigint,total_cryptocurrencies:bigint,active_market_pairs:bigint,active_exchanges:bigint,total_exchanges:bigint,btc_dominance_yesterday:double,eth_dominance_yesterday:double,btc_dominance_24h_change:double,eth_dominance_24h_change:double,defi_volume_24h:double,defi_volume_24h_reported:double,defi_market_cap:double,defi_24h_percentage_change:double,stablecoin_market_cap:double,stablecoin_volume_24h:double,stablecoin_volume_24h_reported:double,stablecoin_24h_percentage_change:double,derivatives_volume_24h:double,derivatives_volume_24h_reported:double,derivatives_24h_percentage_change:double,altcoin_volume_24h:double,altcoin_volume_24h_reported:double,altcoin_market_cap:double,total_market_cap:double,total_volume_24h:double,total_volume_24h_reported:double,total_market_cap_yesterday:double,total_volume_24h_yesterday:double,total_market_cap_yesterday_change:double,total_volume_24h_yesterday_change:double,total_crypto_dex_currencies:bigint,new_cryptos_today:bigint,new_cryptos_last_24h:bigint,new_cryptos_last_7d:bigint,new_cryptos_last_30d:bigint,new_cryptos_today_pct:double,max_daily_new_cryptos:bigint,max_new_cryptos_day:string,min_daily_new_cryptos:bigint,min_new_cryptos_day:string> 
+[2025-05-11 17:54:22] [TRANSFORM] [GLOBALMETRICSTRANSFORMER] [global_market_fact] [After casting LongType to IntegerType] Row count: 1, Schema: struct<date_snapshot:string,last_updated:string,btc_dominance:double,eth_dominance:double,active_cryptocurrencies:int,total_cryptocurrencies:int,active_market_pairs:int,active_exchanges:int,total_exchanges:int,btc_dominance_yesterday:double,eth_dominance_yesterday:double,btc_dominance_24h_change:double,eth_dominance_24h_change:double,defi_volume_24h:double,defi_volume_24h_reported:double,defi_market_cap:double,defi_24h_percentage_change:double,stablecoin_market_cap:double,stablecoin_volume_24h:double,stablecoin_volume_24h_reported:double,stablecoin_24h_percentage_change:double,derivatives_volume_24h:double,derivatives_volume_24h_reported:double,derivatives_24h_percentage_change:double,altcoin_volume_24h:double,altcoin_volume_24h_reported:double,altcoin_market_cap:double,total_market_cap:double,total_volume_24h:double,total_volume_24h_reported:double,total_market_cap_yesterday:double,total_volume_24h_yesterday:double,total_market_cap_yesterday_change:double,total_volume_24h_yesterday_change:double,total_crypto_dex_currencies:int,new_cryptos_today:int,new_cryptos_last_24h:int,new_cryptos_last_7d:int,new_cryptos_last_30d:int,new_cryptos_today_pct:double,max_daily_new_cryptos:int,max_new_cryptos_day:string,min_daily_new_cryptos:int,min_new_cryptos_day:string> 
+[2025-05-11 17:54:22] [TRANSFORM] [GLOBALMETRICSTRANSFORMER] [global_market_fact] [After computing derived KPIs] Row count: 1, Schema: struct<date_snapshot:string,last_updated:string,btc_dominance:double,eth_dominance:double,active_cryptocurrencies:int,total_cryptocurrencies:int,active_market_pairs:int,active_exchanges:int,total_exchanges:int,btc_dominance_yesterday:double,eth_dominance_yesterday:double,btc_dominance_24h_change:double,eth_dominance_24h_change:double,defi_volume_24h:double,defi_volume_24h_reported:double,defi_market_cap:double,defi_24h_percentage_change:double,stablecoin_market_cap:double,stablecoin_volume_24h:double,stablecoin_volume_24h_reported:double,stablecoin_24h_percentage_change:double,derivatives_volume_24h:double,derivatives_volume_24h_reported:double,derivatives_24h_percentage_change:double,altcoin_volume_24h:double,altcoin_volume_24h_reported:double,altcoin_market_cap:double,total_market_cap:double,total_volume_24h:double,total_volume_24h_reported:double,total_market_cap_yesterday:double,total_volume_24h_yesterday:double,total_market_cap_yesterday_change:double,total_volume_24h_yesterday_change:double,total_crypto_dex_currencies:int,new_cryptos_today:int,new_cryptos_last_24h:int,new_cryptos_last_7d:int,new_cryptos_last_30d:int,new_cryptos_today_pct:double,max_daily_new_cryptos:int,max_new_cryptos_day:string,min_daily_new_cryptos:int,min_new_cryptos_day:string,market_liquidity_ratio:double,check_market_liquidity_ratio:int,defi_volume_share:double,check_defi_volume_share:int,stablecoin_market_share:double,check_stablecoin_market_share:int,btc_dominance_delta:double,check_btc_dominance_delta:int,eth_dominance_delta:double,check_eth_dominance_delta:int,crypto_growth_rate_30d:double,check_crypto_growth_rate_30d:int> 
+[2025-05-11 17:54:22] [TRANSFORM] [GLOBALMETRICSTRANSFORMER] [global_market_fact] [Cleaned fact_global_market] Row count: 1, Schema: struct<snapshot_timestamp:timestamp,snapshot_str:string,last_updated_timestamp:timestamp,last_updated_str:string,btc_dominance:double,eth_dominance:double,btc_dominance_yesterday:double,eth_dominance_yesterday:double,btc_dominance_24h_change:double,eth_dominance_24h_change:double,btc_dominance_delta:double,eth_dominance_delta:double,check_btc_dominance_delta:int,check_eth_dominance_delta:int,active_cryptocurrencies:int,total_cryptocurrencies:int,active_market_pairs:int,active_exchanges:int,total_exchanges:int,defi_market_cap:double,defi_volume_24h:double,defi_volume_24h_reported:double,defi_24h_percentage_change:double,defi_volume_share:double,check_defi_volume_share:int,stablecoin_market_cap:double,stablecoin_volume_24h:double,stablecoin_volume_24h_reported:double,stablecoin_24h_percentage_change:double,stablecoin_market_share:double,check_stablecoin_market_share:int,derivatives_volume_24h:double,derivatives_volume_24h_reported:double,derivatives_24h_percentage_change:double,altcoin_market_cap:double,altcoin_volume_24h:double,altcoin_volume_24h_reported:double,total_market_cap:double,total_volume_24h:double,total_volume_24h_reported:double,market_liquidity_ratio:double,check_market_liquidity_ratio:int,total_market_cap_yesterday:double,total_volume_24h_yesterday:double,total_market_cap_yesterday_change:double,total_volume_24h_yesterday_change:double,total_crypto_dex_currencies:int,new_cryptos_today:int,new_cryptos_last_24h:int,new_cryptos_last_7d:int,new_cryptos_last_30d:int,new_cryptos_today_pct:double,crypto_growth_rate_30d:double,check_crypto_growth_rate_30d:int,max_daily_new_cryptos:int,max_new_cryptos_day:string,min_daily_new_cryptos:int,min_new_cryptos_day:string> 
+[2025-05-11 17:54:22] [TRANSFORM] [GLOBALMETRICSTRANSFORMER] Writing Delta file to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/global_metrics/fact_global_market (mode=append) 
+[2025-05-11 17:54:22] [TRANSFORM] [GLOBALMETRICSTRANSFORMER] Write successful in mode append to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/global_metrics/fact_global_market 
+[2025-05-11 17:54:22] [TRANSFORM] [GLOBALMETRICSTRANSFORMER] fact_global_market table successfully built and written. 
+[2025-05-11 17:54:22] [TRANSFORM] [GLOBALMETRICSTRANSFORMER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/global_metrics/fact_global_market.jsonl 
+
+==================================================
+           End GlobalMetricsTransformer           
+==================================================
+
+"                         Second Run _ Dry Execution Summary                     "
+
+"These logs show a safe and efficient dry-run of the GlobalMetricsTransformer pipeline where no new transformation was required."
+
+  " - GlobalMetricsTransformer -> Snapshot freshness check enabled"
+  " - Skipped transformation since the .parquet snapshot had already been processed"
+  " - Metadata file (.jsonl) was successfully loaded and parsed"
+  " - Logic in should_transform() correctly compared snapshot timestamp vs last transformation time"
+  " - Ensured idempotent behavior: the same input snapshot doesn't trigger redundant processing"
+
+==================================================
+         Running GlobalMetricsTransformer         
+==================================================
+[2025-05-11 17:59:27] [TRANSFORM] [GLOBALMETRICSTRANSFORMER] Found 1 parquet file(s) in global_metrics_data (limit=1) 
+[2025-05-11 17:59:27] [TRANSFORM] [GLOBALMETRICSTRANSFORMER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/global_metrics/fact_global_market.jsonl 
+[2025-05-11 17:59:27] [TRANSFORM] [GLOBALMETRICSTRANSFORMER] Last .parquet record at : 2025-05-11 16:01:38 and last transformed at 2025-05-11 17:54:22.707821 
+[2025-05-11 17:59:27] [TRANSFORM] [GLOBALMETRICSTRANSFORMER] [global_market_fact] fact_global_market is up to date. Skipping transformation. 
+
+==================================================
+           End GlobalMetricsTransformer           
+==================================================
