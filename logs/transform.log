@@ -329,3 +329,86 @@
 ==================================================
            End GlobalMetricsTransformer           
 ==================================================
+
+"  These logs show a complete and successful run of FearAndGreedTransformer [History Init]  "
+
+  " 1.Historical snapshot found and loaded from fear_and_greed_data"
+  " 2.No existing metadata -> initial load proceeds"
+  " 3.Parsed 500 raw records with Unix timestamps"
+  " 4.Cleaned dataset includes snapshot_timestamp, snapshot_str, score, and label"
+  " 5.Table written successfully in overwrite mode"
+  " 6.Metadata saved to prevent duplicate initialization"
+==================================================
+  Running FearAndGreedTransformer [History Init]  
+==================================================
+[2025-05-13 20:46:33] [TRANSFORM] [FEARANDGREEDTRANSFORMER] Found 1 parquet file(s) in fear_and_greed_data (limit=1) 
+[2025-05-13 20:46:33] [TRANSFORM] [FEARANDGREEDTRANSFORMER] [INFO] No existing metadata for market_sentiment_history 
+[2025-05-13 20:46:33] [TRANSFORM] [FEARANDGREEDTRANSFORMER] [market_sentiment_fact] > Starting historical transformation... 
+[2025-05-13 20:46:33] [TRANSFORM] [FEARANDGREEDTRANSFORMER] [market_sentiment_fact] Reading snapshot: fear_and_greed-2025-05-03_23-12-04.parquet 
+[2025-05-13 20:46:33] [TRANSFORM] [FEARANDGREEDTRANSFORMER] [market_sentiment_fact] Successfully loaded raw historical DataFrame 
+[2025-05-13 20:46:33] [TRANSFORM] [FEARANDGREEDTRANSFORMER] [market_sentiment_fact] [Loaded data [history]] Row count: 500, Schema: struct<value:bigint,value_classification:string,timestamp:string> 
+[2025-05-13 20:46:33] [TRANSFORM] [FEARANDGREEDTRANSFORMER] [market_sentiment_fact] [Cleaned fact_market_sentiment [history]] Row count: 500, Schema: struct<snapshot_timestamp:timestamp,snapshot_str:string,fear_greed_score:int,sentiment_label:string> 
+[2025-05-13 20:46:33] [TRANSFORM] [FEARANDGREEDTRANSFORMER] Writing Delta file to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/fear_and_greed/fact_market_sentiment (mode=overwrite) 
+[2025-05-13 20:46:33] [TRANSFORM] [FEARANDGREEDTRANSFORMER] Write successful in mode overwrite to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/fear_and_greed/fact_market_sentiment 
+[2025-05-13 20:46:33] [TRANSFORM] [FEARANDGREEDTRANSFORMER] market_sentiment_history table successfully built and written. 
+[2025-05-13 20:46:33] [TRANSFORM] [FEARANDGREEDTRANSFORMER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/fear_and_greed/market_sentiment_history.jsonl 
+
+==================================================
+    End FearAndGreedTransformer [History Init]    
+==================================================
+
+"  These logs show a complete and successful run of FearAndGreedTransformer [Live Update]  "
+
+" 1. Live snapshot found in latest_fear_and_greed_data"
+" 2. No metadata yet -> allowed to proceed"
+" 3. 1 new row processed and appended"
+" 4. Cleaned structure matches historical format"
+" 5. Table written in append mode"
+" 6. Metadata file created for future tracking"
+==================================================
+  Running FearAndGreedTransformer [Live Update]   
+==================================================
+[2025-05-13 20:47:28] [TRANSFORM] [FEARANDGREEDTRANSFORMER] Found 1 parquet file(s) in latest_fear_and_greed_data (limit=1) 
+[2025-05-13 20:47:28] [TRANSFORM] [FEARANDGREEDTRANSFORMER] [INFO] No existing metadata for fact_market_sentiment 
+[2025-05-13 20:47:28] [TRANSFORM] [FEARANDGREEDTRANSFORMER] [INFO] No prior ended_at found for fact_market_sentiment. Proceeding. 
+[2025-05-13 20:47:28] [TRANSFORM] [FEARANDGREEDTRANSFORMER] [market_sentiment_fact] > Starting live transformation... 
+[2025-05-13 20:47:28] [TRANSFORM] [FEARANDGREEDTRANSFORMER] [market_sentiment_fact] Reading snapshot: fear_and_greed_latest-2025-05-13_16-31-04.parquet 
+[2025-05-13 20:47:28] [TRANSFORM] [FEARANDGREEDTRANSFORMER] [market_sentiment_fact] Successfully loaded raw live DataFrame 
+[2025-05-13 20:47:28] [TRANSFORM] [FEARANDGREEDTRANSFORMER] [market_sentiment_fact] [Cleaned fact_market_sentiment [live]] Row count: 1, Schema: struct<snapshot_timestamp:timestamp,snapshot_str:string,fear_greed_score:int,sentiment_label:string> 
+[2025-05-13 20:47:28] [TRANSFORM] [FEARANDGREEDTRANSFORMER] Writing Delta file to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/fear_and_greed/fact_market_sentiment (mode=append) 
+[2025-05-13 20:47:28] [TRANSFORM] [FEARANDGREEDTRANSFORMER] Write successful in mode append to: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/fear_and_greed/fact_market_sentiment 
+[2025-05-13 20:47:28] [TRANSFORM] [FEARANDGREEDTRANSFORMER] fact_market_sentiment table successfully built and written. 
+[2025-05-13 20:47:28] [TRANSFORM] [FEARANDGREEDTRANSFORMER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/fear_and_greed/fact_market_sentiment.jsonl 
+
+==================================================
+    End FearAndGreedTransformer [Live Update]     
+==================================================
+
+
+                          "[Dry Run] Logs"
+"Metadata for both market_sentiment_history and fact_market_sentiment was found"
+"Snapshots already processed -> no transformation triggered"
+"Skipped both historical init and live append"
+"Confirms correct snapshot freshness detection and idempotent behavior"
+==================================================
+  Running FearAndGreedTransformer [History Init]  
+==================================================
+[2025-05-13 20:48:42] [TRANSFORM] [FEARANDGREEDTRANSFORMER] Found 1 parquet file(s) in fear_and_greed_data (limit=1) 
+[2025-05-13 20:48:42] [TRANSFORM] [FEARANDGREEDTRANSFORMER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/fear_and_greed/market_sentiment_history.jsonl 
+[2025-05-13 20:48:42] [TRANSFORM] [FEARANDGREEDTRANSFORMER] [market_sentiment_fact] Historical data already initialized. Skipping. 
+
+==================================================
+    End FearAndGreedTransformer [History Init]    
+==================================================
+
+==================================================
+  Running FearAndGreedTransformer [Live Update]   
+==================================================
+[2025-05-13 20:48:42] [TRANSFORM] [FEARANDGREEDTRANSFORMER] Found 1 parquet file(s) in latest_fear_and_greed_data (limit=1) 
+[2025-05-13 20:48:42] [TRANSFORM] [FEARANDGREEDTRANSFORMER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/fear_and_greed/fact_market_sentiment.jsonl 
+[2025-05-13 20:48:42] [TRANSFORM] [FEARANDGREEDTRANSFORMER] Last .parquet record at : 2025-05-13 and last transformed at 2025-05-13 
+[2025-05-13 20:48:42] [TRANSFORM] [FEARANDGREEDTRANSFORMER] [market_sentiment_fact] fact_market_sentiment is up to date. Skipping transformation. 
+
+==================================================
+    End FearAndGreedTransformer [Live Update]     
+==================================================
