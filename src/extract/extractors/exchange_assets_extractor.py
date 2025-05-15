@@ -1,6 +1,6 @@
 from extract.base_extractor import BaseExtractor
 from typing import List, Generator, Tuple
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from pandas import DataFrame
 import json
 import time
@@ -109,8 +109,11 @@ class ExchangeAssetsExtractor(BaseExtractor):
         active_exchanges = []
         last_snapshot = self.read_last_snapshot()
 
-        today_str = date.today().isoformat()
-        is_full_scan = not last_snapshot or today_str == last_snapshot.get("date_of_next_full_scan")
+        today_str = date.today()
+        last_scan_str = last_snapshot.get("date_of_next_full_scan")
+
+        last_scan_date = datetime.strptime(last_scan_str, "%Y-%m-%d").date() if last_scan_str else None
+        is_full_scan = not last_snapshot or today_str >= last_scan_date
 
         # Use all IDs on full scan, or reuse active subset from last run
         target_ids = ids if is_full_scan else last_snapshot.get("actif_exchanges", [])
