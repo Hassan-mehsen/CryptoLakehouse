@@ -8,3 +8,5 @@
 {"snapshot_date": "2025-05-01 09:56:14", "total_count": 813, "source_endpoint": "/v1/exchange/info", "exchange_map_snapshot_ref": "2025-05-01 09:44:48"}
 {"snapshot_date": "2025-05-01 12:31:20", "total_count": 813, "source_endpoint": "/v1/exchange/info", "exchange_map_snapshot_ref": "2025-05-01 09:44:48"}
 {"snapshot_date": "2025-05-05 20:09:41", "total_count": 813, "source_endpoint": "/v1/exchange/info", "exchange_map_snapshot_ref": "2025-05-01 09:44:48"}
+{"snapshot_date": "2025-05-11 15:12:44", "total_count": 815, "source_endpoint": "/v1/exchange/info", "exchange_map_snapshot_ref": "2025-05-11 15:12:36"}
+{"snapshot_date": "2025-05-15 18:37:23", "total_count": 816, "source_endpoint": "/v1/exchange/info", "exchange_map_snapshot_ref": "2025-05-15 18:37:14"}

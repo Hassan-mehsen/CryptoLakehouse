@@ -3,3 +3,4 @@
 {"snapshot_date": "2025-05-01 12:41:13", "total_listed_cryptos": 5000, "source_endpoint": "/v1/cryptocurrency/listings/latest"}
 {"snapshot_date": "2025-05-03 22:37:17", "total_listed_cryptos": 5000, "source_endpoint": "/v1/cryptocurrency/listings/latest"}
 {"snapshot_date": "2025-05-05 20:27:54", "total_listed_cryptos": 5000, "source_endpoint": "/v1/cryptocurrency/listings/latest"}
+{"snapshot_date": "2025-05-15 18:41:18", "total_listed_cryptos": 5000, "source_endpoint": "/v1/cryptocurrency/listings/latest"}
