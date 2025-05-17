@@ -1,12 +1,13 @@
 from typing import List, Optional, Callable, Tuple
 from pyspark.sql import SparkSession, DataFrame
 from datetime import datetime, timezone
+from delta.tables import DeltaTable
 from collections import defaultdict
 from pathlib import Path
 import json
 
 
-class BaseTransformer():
+class BaseTransformer:
     """
     Abstract base class for Spark transformation modules (one per business domain).
 
@@ -36,7 +37,6 @@ class BaseTransformer():
     Typical usage:
     - Subclassed by each domain transformer (e.g. `ExchangeTransformer`, `CryptoTransformer`)
     """
-
 
     # Maps transformer class names to their corresponding domain folder names
     DOMAIN_NAME_MAP = {
@@ -92,11 +92,18 @@ class BaseTransformer():
             "notes": "-",
         }
 
+        # Tables eligible for OPTIMIZE after each write (lightweight append workloads)
+        self.optimize_tables = {"fact_market_sentiment", "fact_global_market"}
+
+        # Domains where tables should be vacuumed after write
+        # Retention period: 720 hours (30 days) to allow rollback & time travel
+        self.vacuum_domains = {"exchange", "crypto"}
+
     # --------------------------------------------------------------------
     #                           Logging Methods
     # --------------------------------------------------------------------
 
-    def log(self, message: str = "", table_name : str = None ,style: str = None) -> None:
+    def log(self, message: str = "", table_name: str = None, style: str = None) -> None:
         """
         Logs a message to the shared transform.log file with timestamp and transformer name.
         Args:
@@ -104,15 +111,15 @@ class BaseTransformer():
             table_name (str, optional): The name of the table being processed (included in the log format).
             style (str): Optional. If provided, this exact string will be logged instead of the formatted message.
         """
-        if table_name : 
+        if table_name:
             formatted = f"[{self.str_timestamp}] [TRANSFORM] [{self.name.upper()}] [{table_name}] {message} \n"
-        else :
-             formatted = f"[{self.str_timestamp}] [TRANSFORM] [{self.name.upper()}] {message} \n"
+        else:
+            formatted = f"[{self.str_timestamp}] [TRANSFORM] [{self.name.upper()}] {message} \n"
+
         try:
             msg = style if style else formatted
             with open(self.log_path, "a") as f:
                 f.write(msg)
-
         except Exception as e:
             print(f"[LOGGING FAILURE] Could not write to {self.log_path} -> {e}")
 
@@ -123,12 +130,11 @@ class BaseTransformer():
             title (str): Centered title of the section.
             width (int): Width of the log block (default: 50).
         """
-
         self.log(style="\n" + "=" * width + "\n")
         self.log(style=title.center(width))
         self.log(style="\n" + "=" * width + "\n")
 
-    def log_dataframe_info(self, df: DataFrame, label: str = "", table_name : str = None) -> None:
+    def log_dataframe_info(self, df: DataFrame, label: str = "", table_name: str = None) -> None:
         """
         Logs summary statistics for a DataFrame, including row count and schema.
         Logs any error encountered during inspection.
@@ -146,7 +152,7 @@ class BaseTransformer():
         try:
             count = df.count()
             schema = df.schema.simpleString()
-            self.log(f"[{label}] Row count: {count}, Schema: {schema}",table_name=table_name)
+            self.log(f"[{label}] Row count: {count}, Schema: {schema}", table_name=table_name)
 
         except Exception as e:
             self.log(f"[ERROR] Failed to inspect DataFrame [{label}] -> {e}")
@@ -154,6 +160,99 @@ class BaseTransformer():
     # --------------------------------------------------------------------
     #                       I/O Helper Methods
     # --------------------------------------------------------------------
+    def write_delta(
+        self,
+        df: DataFrame,
+        relative_path: str,
+        mode: str = "overwrite",
+        partition_by: Optional[List[str]] = None,
+        vacuum: bool = True
+    ) -> str:
+        """
+        Writes a DataFrame to Delta Lake format in the Silver layer of the data lake.
+
+        This method centralizes the writing logic with full support for:
+        - Schema evolution (`overwriteSchema` or `mergeSchema`)
+        - Optional partitioning on one or more columns
+        - Post-write optimization (`OPTIMIZE + VACUUM`) for small/frequent tables
+        - Optional retention cleanup (`VACUUM`) for large Delta domains like 'exchange' or 'crypto'
+
+        Post-write behavior:
+        - If `relative_path` belongs to `self.optimize_tables`, small file compaction is triggered
+        via Delta Lake `OPTIMIZE` + `VACUUM (7 days)` to reduce file fragmentation.
+        - If `self.domain` is listed in `self.vacuum_domains` **and** `vacuum=True`, a heavier cleanup
+        via `VACUUM (30 days)` is triggered to purge old Delta files and reduce storage usage.
+
+        Args:
+            df (DataFrame): Spark DataFrame to persist.
+            relative_path (str): Subdirectory of the domain folder (e.g., 'fact_crypto_market').
+            mode (str): Write mode ('overwrite', 'append', 'ignore', or 'error'). Default: 'overwrite'.
+            partition_by (Optional[List[str]]): Columns to partition the Delta table by.
+            vacuum (bool): Whether to trigger a long-retention (30d) VACUUM post-write. Default: True.
+
+        Returns:
+            str: 'ok' if the write and post-processing succeed, 'ko' otherwise.
+        """
+
+        full_path = self.silver_data_path / self.domain / relative_path
+
+        try:
+            self.log(f"Writing Delta file to: {full_path} (mode={mode})", table_name=relative_path)
+
+            writer = df.write.format("delta").mode(mode)
+            
+            if mode == "overwrite":
+                writer = writer.option("overwriteSchema", "true")
+            elif mode == "append":
+                writer = writer.option("mergeSchema", "true")
+
+            if partition_by:
+                writer = writer.partitionBy(*partition_by)
+
+            writer.save(str(full_path))
+
+            self.log(f"Write successful in mode {mode} to: {full_path}", table_name=relative_path)
+
+            # OPTIMIZE + VACUUM (7d) for small/frequent Delta tables
+            if relative_path in self.optimize_tables:
+                self.log(f"[OPTIMIZE] Compacting small files for {relative_path}...", table_name=relative_path)
+                self.spark.sql(f"REFRESH TABLE delta.`{full_path}`")
+                DeltaTable.forPath(self.spark, str(full_path)).optimize().executeCompaction()
+                DeltaTable.forPath(self.spark, str(full_path)).vacuum(retentionHours=168)
+                self.log(f"[OPTIMIZE] Optimization done for {relative_path}.", table_name=relative_path)
+
+            # VACUUM (30d) for heavy domains
+            if self.domain in self.vacuum_domains and vacuum:
+                self.log(f"[VACUUM] Cleaning up obsolete files for {relative_path}...", table_name=relative_path)
+                DeltaTable.forPath(self.spark, str(full_path)).vacuum(retentionHours=720)
+                self.log(f"[VACUUM] Vacuum completed for {relative_path}", table_name=relative_path)
+
+            return "ok"
+
+        except Exception as e:
+            self.log(f"[ERROR] Failed to write Delta file to {full_path} -> {e}", table_name=relative_path)
+            return "ko"
+
+    def read_delta(self, relative_path: str) -> Optional[DataFrame]:
+        """
+        Reads a Delta table from the silver layer.
+        Logs any read error encountered.
+        Args:
+            relative_path (str): Subpath to the Delta table in silver layer.
+
+        Returns:
+            DataFrame: The loaded Spark DataFrame.
+        """
+        full_path = self.silver_data_path / relative_path
+
+        try:
+            self.log(f"Reading Delta table from: {full_path}", table_name=relative_path)
+            return self.spark.read.format("delta").load(str(full_path))
+
+        except Exception as e:
+            self.log(f"[ERROR] Failed to read Delta table from {full_path} -> {e}", table_name=relative_path)
+            return None
+        
 
     def find_latest_data_files(self, relative_folder: str, limit: int = 1) -> Optional[List[Path]]:
         """
@@ -178,8 +277,10 @@ class BaseTransformer():
         except Exception as e:
             self.log(f"[ERROR] Failed to list files in {relative_folder} -> {e}")
             return None
-        
-    def find_latest_batch(self, relative_folder: str, expected_batch_count: int = 5, allow_incomplete : bool = False) -> Optional[List[Path]]:
+
+    def find_latest_batch(
+        self, relative_folder: str, expected_batch_count: int = 5, allow_incomplete: bool = False
+    ) -> Optional[List[Path]]:
         """
         Identifies the most recent complete batch in a folder, based on the timestamp suffix.
         A batch is considered complete if it contains exactly `expected_batch_count` files.
@@ -212,83 +313,20 @@ class BaseTransformer():
             batch_files = grouped[latest_timestamp]
 
             if len(batch_files) < expected_batch_count and allow_incomplete:
-                self.log(f"[WARN] Incomplete batch for timestamp {latest_timestamp}: {len(batch_files)}/{expected_batch_count} files found.")
+                self.log(
+                    f"[WARN] Incomplete batch for timestamp {latest_timestamp}: {len(batch_files)}/{expected_batch_count} files found."
+                )
                 return sorted(batch_files)
-            elif len(batch_files) < expected_batch_count :
-                self.log(f"[WARN] Incomplete batch for timestamp {latest_timestamp}: {len(batch_files)}/{expected_batch_count} files found.")
+            elif len(batch_files) < expected_batch_count:
+                self.log(
+                    f"[WARN] Incomplete batch for timestamp {latest_timestamp}: {len(batch_files)}/{expected_batch_count} files found."
+                )
 
             self.log(f"[OK] Latest complete batch found for timestamp {latest_timestamp} with {len(batch_files)} files.")
             return sorted(batch_files)
 
         except Exception as e:
             self.log(f"[ERROR] Failed to find latest batch in {relative_folder} → {e}")
-            return None
-
-
-
-    def write_delta(
-        self, df: DataFrame, relative_path: str, mode: str = "overwrite", partition_by: Optional[List[str]] = None
-    ) -> str:
-        """
-        Writes a DataFrame to the Delta Lake format in the silver layer.
-
-        Automatically logs the write operation and captures any error encountered.
-
-        Supports schema evolution which allows the schema of the existing
-        Delta table to be overwritten or appended during write operations.
-        Optionally allows partitioning by one or more columns.
-
-        Args:
-            df (DataFrame): The Spark DataFrame to write.
-            relative_path (str): Name of the Delta table folder inside the domain (e.g., "dim_exchange_id").
-                                Full path resolved as: silver/domain/relative_path/
-            mode (str): Spark write mode ("overwrite", "append", "ignore", or "error"). Default is "overwrite".
-            partition_by (Optional[List[str]]): List of column names to partition the Delta table by (if any).
-
-        Returns:
-            str: "ok" if write successful, "ko" otherwise.
-        """
-        full_path = self.silver_data_path / self.domain / relative_path
-
-        try:
-            self.log(f"Writing Delta file to: {full_path} (mode={mode})")
-
-            writer = df.write.format("delta").mode(mode)
-            if mode == "overwrite":
-                writer = writer.option("overwriteSchema", "true")
-            elif mode == "append":
-                writer = writer.option("mergeSchema", "true")
-
-            if partition_by:
-                writer = writer.partitionBy(*partition_by)
-
-            writer.save(str(full_path))
-
-            self.log(f"Write successful in mode {mode} to: {full_path}")
-            return "ok"
-
-        except Exception as e:
-            self.log(f"[ERROR] Failed to write Delta file to {full_path} -> {e}")
-            return "ko"
-
-    def read_delta(self, relative_path: str) -> Optional[DataFrame]:
-        """
-        Reads a Delta table from the silver layer.
-        Logs any read error encountered.
-        Args:
-            relative_path (str): Subpath to the Delta table in silver layer.
-
-        Returns:
-            DataFrame: The loaded Spark DataFrame.
-        """
-        full_path = self.silver_data_path / relative_path
-
-        try:
-            self.log(f"Reading Delta table from: {full_path}")
-            return self.spark.read.format("delta").load(str(full_path))
-
-        except Exception as e:
-            self.log(f"[ERROR] Failed to read Delta table from {full_path} → {e}")
             return None
 
     def save_metadata(self, table_name: str, metadata: dict) -> None:
@@ -378,9 +416,7 @@ class BaseTransformer():
         self.metadata.update(
             {
                 "table": table_name,
-                "source_snapshot": (
-                    "from broadcasted_exchange_info_df" if table_name == "dim_exchange_map" else str(source)
-                ),
+                "source_snapshot": ("from broadcasted_exchange_info_df" if table_name == "dim_exchange_map" else str(source)),
                 "started_at": started_at,
             }
         )
@@ -403,9 +439,7 @@ class BaseTransformer():
         self.metadata.update(
             {
                 "ended_at": ended_at,
-                "duration_seconds": (
-                    datetime.fromisoformat(ended_at) - datetime.fromisoformat(started_at)
-                ).total_seconds(),
+                "duration_seconds": (datetime.fromisoformat(ended_at) - datetime.fromisoformat(started_at)).total_seconds(),
                 "record_count": df.count(),
                 "status": "success" if status == "ok" else "failed",
                 "current_status": "transformed" if status == "ok" else "raw",
@@ -422,11 +456,7 @@ class BaseTransformer():
         self.save_metadata(str(table_name), self.metadata)
 
     def should_transform(
-        self, 
-        table_name: str, 
-        latest_snapshot_path: Path, 
-        force: bool = False, 
-        daily_comparison: bool = True
+        self, table_name: str, latest_snapshot_path: Path, force: bool = False, daily_comparison: bool = True
     ) -> bool:
         """
         Determines whether a table should be transformed based on the freshness of its latest snapshot.
@@ -447,12 +477,13 @@ class BaseTransformer():
         Returns:
             bool: True if transformation should proceed, False otherwise.
         """
-        if force : 
+        if force:
             return True
 
         try:
             # Extract timestamp from file name like: exchange_map-2025-05-07_12-34-56.parquet
-            ts_str = latest_snapshot_path.stem.split("-", maxsplit=1)  # ['exchange_map'  '2025-05-07_12-34-56']
+            # ['exchange_map'  '2025-05-07_12-34-56']
+            ts_str = latest_snapshot_path.stem.split("-", maxsplit=1)
             date_part = ts_str[1].split("_", maxsplit=1)[0]  # '2025-05-07'
             time_part = ts_str[1].split("_", maxsplit=1)[1].replace("-", ":")  # '12:34:56'
             snapshot_str = f"{date_part} {time_part}"  # '2025-05-07 12:34:56'
