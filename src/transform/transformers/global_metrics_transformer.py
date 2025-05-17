@@ -19,6 +19,10 @@ class GlobalMetricsTransformer(BaseTransformer):
     def __init__(self, spark: SparkSession):
         super().__init__(spark)
 
+    # --------------------------------------------------------------------
+    #                          Public entrypoint
+    # --------------------------------------------------------------------
+
     def build_global_market_fact(self) -> None:
         """
         Triggers the full transformation process for the `fact_global_market` table.
@@ -49,6 +53,10 @@ class GlobalMetricsTransformer(BaseTransformer):
             mode="append",
         )
         self.log_section("End GlobalMetricsTransformer")
+
+    # --------------------------------------------------------------------
+    #                    Internal Transformation Method
+    # --------------------------------------------------------------------
 
     def __prepare_global_market_df(self, latest_snapshot: str) -> Optional[Tuple[DataFrame, str]]:
         """

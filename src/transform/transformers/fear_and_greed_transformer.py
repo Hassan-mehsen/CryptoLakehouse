@@ -80,7 +80,7 @@ class FearAndGreedTransformer(BaseTransformer):
             return
 
         latest_snapshot = snapshot_paths[0]
-        if not self.should_transform("fact_market_sentiment", latest_snapshot, daily_comparison=True):
+        if not self.should_transform("fact_market_sentiment", latest_snapshot, daily_comparison=False):
             self.log("fact_market_sentiment is up to date. Skipping transformation.", table_name="market_sentiment_fact")
             self.log_section("End FearAndGreedTransformer [Live Update]")
             return
