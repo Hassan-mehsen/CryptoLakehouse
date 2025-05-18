@@ -1,34 +1,18 @@
 # runners/
 
-Ce dossier contient des scripts de test local pour chaque extracteur.
+This folder contains local test scripts for data extractors.
 
-Chaque script peut être exécuté manuellement pour tester un endpoint spécifique,
-en dehors d'Airflow. Cela permet de valider le comportement individuel des classes
-avant leur intégration dans les DAGs.
-
-Les fichiers `.py` de test sont ignorés dans le `.gitignore` pour ne pas encombrer le dépôt.
-
-
-
-/----------------------------------------------------
-
-
-# runners/
-
-Ce dossier contient des **scripts de test local** pour les extracteurs de données.
-
-Chaque fichier ici permet de tester individuellement un extracteur (par endpoint)
-sans passer par Airflow. Cela facilite le développement, le debug, et la validation
-des appels API en local.
+Each file here allows individual testing of an extractor (by endpoint)
+without going through Airflow. This makes it easier to develop, debug, and validate
+API calls locally.
 
 ## Structure
 
-- `__init__.py` : permet de rendre ce dossier importable comme un package
-- `example_test.py` *(non versionné)* : fichier typique de test local
-- `README.md` : ce fichier
+- `__init__.py` : makes this folder importable as a package
+- `example_test.py` *(not versioned)*: typical local test file
+- `README.md` : this file
 
-Les fichiers `.py` sont ignorés du dépôt Git via `.gitignore`, pour ne pas encombrer
-le repository avec du code temporaire ou non exécutable en production.
+The .py files are ignored by the Git repository via .gitignore to avoid cluttering
+the repository with temporary or non-production-executable code.
 
-> Tu peux ajouter tes propres tests ici librement pour développer plus efficacement.
-
+You are free to add your own tests here to develop more efficiently.

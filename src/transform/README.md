@@ -1,32 +1,40 @@
-# 📁 `transform/` Folder Overview
+# `transform/` Folder Overview
 
-This directory contains all Spark-based transformation logic for the ETL pipeline.
+This directory contains all Spark-based transformation logic for the ETL pipeline.  
 It is organized by domain and role to ensure modularity, clarity, and scalability.
 
-## 📂 Folder Structure & Purpose
+---
+
+## Folder Structure & Purpose
 
 ### `base/`
 - Contains shared base classes and utilities.
-- `base_transformer.py`: Defines `BaseTransformer`, which handles SparkSession injection, logging, and common methods.
+- `base_transformer.py`: Defines `BaseTransformer`, which handles SparkSession injection, logging, and common write/metadata methods.
 
 ### `transformers/`
 - Contains all transformation classes, each one dedicated to a business domain.
-- Follows the structure: **one domain = one file = one class**.
-- Each class has a `run()` method, with specific sub-methods for each logical transformation (e.g., building `crypto_dim`, `crypto_data_fact`).
+- Structure: **one domain = one file = one class**.
+- Each class has public methods to build `dim_` and `fact_` tables from domain-specific raw data.
+
+### `orchestrators/`
+- Contains high-level pipeline coordinators used to manage multiple transformers together.
+- `transform_orchestrator.py`: Defines `TransformationPipelineRunner`, the main orchestration class used to drive full or partial transformation pipelines (e.g., `run_daily_tasks()`).
+- Designed for integration with Airflow, DAGs, or scheduled workflows.
 
 ### `runners/`
-- Contains scripts to manually test or run specific transformers in isolation.
-- Useful during development and debugging.
-
-### `main.py`
-- The entrypoint used in production (e.g., called via Airflow or spark-submit).
-- It initializes the SparkSession, instantiates transformer classes, and calls their `run()` methods.
-- Ends by properly stopping the Spark session.
+- Contains ad hoc scripts for local or isolated runs (e.g., `run_crypto_only.py`).
+- Useful for debugging and manual validation of transformer logic.
 
 ### `__init__.py`
-- Present in all folders to ensure they are recognized as Python packages.
+- Present in all folders to make them importable as Python packages.
 
-## ✅ Notes
-- All SparkSession creation and lifecycle are handled in `main.py`, **not** inside individual transformers.
-- Each transformer is focused only on its domain logic: **clean code, testable, and maintainable**.
+---
+
+## Notes
+- All `SparkContext`/`SparkSession` creation is handled centrally in the orchestrator (`TransformationPipelineRunner`) — **not inside individual transformers**.
+- Each transformer is strictly focused on:
+  - reading domain-specific snapshots
+  - cleaning/enriching data
+  - persisting structured Delta tables
+- Metadata tracking, optimization (`OPTIMIZE`), and cleanup (`VACUUM`) are handled automatically via the shared base logic.
 
