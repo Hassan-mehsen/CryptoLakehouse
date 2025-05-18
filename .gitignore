@@ -29,21 +29,20 @@ src/transform/runners/*
 tmp/
 
 # Ignore pycache folder's
-src/extract/__pycache__/
-src/extract/extractors/__pycache__/
-src/transform/__pycache__
-src/transform/base/__pycache__
-src/transform/transformers/__pycache__
+src/extract/**/*__pycache__
+src/transform/**/*__pycache__
+src/db/**/*__pycache__
+alembic/**/*__pycache__
 
 # Ignore all parquet files in bronze by default
 data/bronze/**/*.parquet
-# EXCEPT manually selected reference files
-#!data/bronze/exchange_info-latest.parquet
-#!data/bronze/exchange_map-latest.parquet
-
 
 # Ignore all Delta Lake tables and Parquet outputs in silver layer
 data/silver/**/_delta_log/*
 data/silver/**/*.parquet
 data/silver/**/*.snappy.parquet
 data/silver/**/*.crc
+
+# Ignore all final output files (SQL dumps, CSV reports) in gold layer
+data/gold/dumps/*.sql
+data/gold/snapshots/*.csv
