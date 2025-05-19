@@ -587,7 +587,7 @@ class CryptoTransformer(BaseTransformer):
             "max_supply",
             "infinite_supply",
             "self_reported_circulating_supply",
-            "price_usd",
+            "price_usd",  
             "volume_24h_usd",
             "volume_change_24h",
             "percent_change_1h_usd",
@@ -630,6 +630,7 @@ class CryptoTransformer(BaseTransformer):
                 .withColumn("platform_id", col("platform_id").cast("int"))
                 .withColumn("batch_index", col("batch_index").cast("int"))
                 .withColumn("cmc_rank", col("cmc_rank").cast("int"))
+                .withColumn("num_market_pairs", col("num_market_pairs").cast("int"))
                 .withColumn("last_updated_usd", date_format(to_timestamp(col("last_updated_usd")), "yyyy-MM-dd HH:mm:ss"))
                 .drop("id")
                 .dropna(subset=["crypto_id", "snapshot_timestamp"])
