@@ -55,7 +55,7 @@ fact_exchange_assets = Table(
     Column("blockchain_symbol", String(20)),                                         # From /exchange/assets
     Column("blockchain_name", String(100)),                                          # From /exchange/assets
     Column("wallet_address", String(255)),                                           # From /exchange/assets
-    Column("crypto_id", Integer),                                                    # From /exchange/assets
+    Column("crypto_id", Integer, ForeignKey("dim_crypto_id.crypto_id")),             # From /exchange/assets
     Column("balance", Float),                                                        # From /exchange/assets -> DoubleType
     Column("currency_price_usd", Float),                                             # From /exchange/assets -> DoubleType
     Column("total_usd_value", Float),                                                # KPI (Spark) = balance * currency_price_usd
