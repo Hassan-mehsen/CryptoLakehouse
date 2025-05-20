@@ -194,7 +194,7 @@ class GlobalMetricsTransformer(BaseTransformer):
                     col("total_volume_24h") / col("total_market_cap"),
                 ).otherwise(lit(0.0)),
             )
-            .withColumn("check_market_liquidity_ratio", when(col("market_liquidity_ratio").isNotNull(), lit(1)).otherwise(lit(0)))
+            .withColumn("check_market_liquidity_ratio", when(col("market_liquidity_ratio").isNotNull(), lit(True)).otherwise(lit(False)))
             .withColumn(
                 "defi_volume_share",
                 when(
@@ -202,16 +202,16 @@ class GlobalMetricsTransformer(BaseTransformer):
                     col("defi_volume_24h") / col("total_volume_24h"),
                 ).otherwise(lit(0.0)),
             )
-            .withColumn("check_defi_volume_share", when(col("defi_volume_share").isNotNull(), lit(1)).otherwise(lit(0)))
+            .withColumn("check_defi_volume_share", when(col("defi_volume_share").isNotNull(), lit(True)).otherwise(lit(False)))
             .withColumn(
-                "stablecoin_market_share",
+                "stablecoin_market_share",  
                 when(
                     col("total_market_cap").isNotNull() & (col("total_market_cap") != 0),
                     col("stablecoin_market_cap") / col("total_market_cap"),
                 ).otherwise(lit(0.0)),
             )
             .withColumn(
-                "check_stablecoin_market_share", when(col("stablecoin_market_share").isNotNull(), lit(1)).otherwise(lit(0))
+                "check_stablecoin_market_share", when(col("stablecoin_market_share").isNotNull(), lit(True)).otherwise(lit(False))
             )
             .withColumn(
                 "btc_dominance_delta",
@@ -220,7 +220,7 @@ class GlobalMetricsTransformer(BaseTransformer):
                     col("btc_dominance") - col("btc_dominance_yesterday"),
                 ).otherwise(lit(0.0)),
             )
-            .withColumn("check_btc_dominance_delta", when(col("btc_dominance_delta").isNotNull(), lit(1)).otherwise(lit(0)))
+            .withColumn("check_btc_dominance_delta", when(col("btc_dominance_delta").isNotNull(), lit(True)).otherwise(lit(False)))
             .withColumn(
                 "eth_dominance_delta",
                 when(
@@ -228,7 +228,7 @@ class GlobalMetricsTransformer(BaseTransformer):
                     col("eth_dominance") - col("eth_dominance_yesterday"),
                 ).otherwise(lit(0.0)),
             )
-            .withColumn("check_eth_dominance_delta", when(col("eth_dominance_delta").isNotNull(), lit(1)).otherwise(lit(0)))
+            .withColumn("check_eth_dominance_delta", when(col("eth_dominance_delta").isNotNull(), lit(True)).otherwise(lit(False)))
             .withColumn(
                 "crypto_growth_rate_30d",
                 when(
@@ -236,7 +236,7 @@ class GlobalMetricsTransformer(BaseTransformer):
                     col("new_cryptos_last_30d") / col("total_cryptocurrencies"),
                 ).otherwise(lit(0.0)),
             )
-            .withColumn("check_crypto_growth_rate_30d", when(col("crypto_growth_rate_30d").isNotNull(), lit(1)).otherwise(lit(0)))
+            .withColumn("check_crypto_growth_rate_30d", when(col("crypto_growth_rate_30d").isNotNull(), lit(True)).otherwise(lit(False)))
         )
 
         self.log_dataframe_info(df_kpis, "After computing derived KPIs", table_name="global_market_fact")
