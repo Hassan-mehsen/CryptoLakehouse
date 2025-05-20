@@ -1,4 +1,4 @@
-from pyspark.sql.functions import col, to_timestamp, to_date, date_format, when, lit
+from pyspark.sql.functions import col, to_timestamp, to_date, date_format, when, lit, abs
 from transform.base.base_transformer import BaseTransformer
 from pyspark.sql import DataFrame, SparkSession
 from typing import Optional, Tuple
@@ -190,28 +190,28 @@ class GlobalMetricsTransformer(BaseTransformer):
             df_casted.withColumn(
                 "market_liquidity_ratio",
                 when(
-                    col("total_market_cap").isNotNull() & (col("total_market_cap") != 0),
+                    col("total_market_cap").isNotNull() & (abs(col("total_market_cap")) > 1e-6) ,
                     col("total_volume_24h") / col("total_market_cap"),
                 ).otherwise(lit(0.0)),
             )
-            .withColumn("check_market_liquidity_ratio", when(col("market_liquidity_ratio").isNotNull(), lit(True)).otherwise(lit(False)))
+            .withColumn("check_market_liquidity_ratio", col("market_liquidity_ratio") != 0.0)
             .withColumn(
                 "defi_volume_share",
                 when(
-                    col("total_volume_24h").isNotNull() & (col("total_volume_24h") != 0),
+                    col("total_volume_24h").isNotNull() & (abs(col("total_volume_24h")) > 1e-6),
                     col("defi_volume_24h") / col("total_volume_24h"),
                 ).otherwise(lit(0.0)),
             )
-            .withColumn("check_defi_volume_share", when(col("defi_volume_share").isNotNull(), lit(True)).otherwise(lit(False)))
+            .withColumn("check_defi_volume_share", col("defi_volume_share") != 0.0)
             .withColumn(
                 "stablecoin_market_share",  
                 when(
-                    col("total_market_cap").isNotNull() & (col("total_market_cap") != 0),
+                    col("total_market_cap").isNotNull() & (abs(col("total_market_cap")) > 1e-6),
                     col("stablecoin_market_cap") / col("total_market_cap"),
                 ).otherwise(lit(0.0)),
             )
             .withColumn(
-                "check_stablecoin_market_share", when(col("stablecoin_market_share").isNotNull(), lit(True)).otherwise(lit(False))
+                "check_stablecoin_market_share", col("stablecoin_market_share") != 0.0
             )
             .withColumn(
                 "btc_dominance_delta",
@@ -220,7 +220,7 @@ class GlobalMetricsTransformer(BaseTransformer):
                     col("btc_dominance") - col("btc_dominance_yesterday"),
                 ).otherwise(lit(0.0)),
             )
-            .withColumn("check_btc_dominance_delta", when(col("btc_dominance_delta").isNotNull(), lit(True)).otherwise(lit(False)))
+            .withColumn("check_btc_dominance_delta", col("btc_dominance_delta") != 0.0)
             .withColumn(
                 "eth_dominance_delta",
                 when(
@@ -228,7 +228,7 @@ class GlobalMetricsTransformer(BaseTransformer):
                     col("eth_dominance") - col("eth_dominance_yesterday"),
                 ).otherwise(lit(0.0)),
             )
-            .withColumn("check_eth_dominance_delta", when(col("eth_dominance_delta").isNotNull(), lit(True)).otherwise(lit(False)))
+            .withColumn("check_eth_dominance_delta", col("eth_dominance_delta") != 0.0)
             .withColumn(
                 "crypto_growth_rate_30d",
                 when(
@@ -236,7 +236,7 @@ class GlobalMetricsTransformer(BaseTransformer):
                     col("new_cryptos_last_30d") / col("total_cryptocurrencies"),
                 ).otherwise(lit(0.0)),
             )
-            .withColumn("check_crypto_growth_rate_30d", when(col("crypto_growth_rate_30d").isNotNull(), lit(True)).otherwise(lit(False)))
+            .withColumn("check_crypto_growth_rate_30d",col("crypto_growth_rate_30d") != 0.0)
         )
 
         self.log_dataframe_info(df_kpis, "After computing derived KPIs", table_name="global_market_fact")
