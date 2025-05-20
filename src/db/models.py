@@ -203,3 +203,103 @@ fact_crypto_category = Table(
 
     PrimaryKeyConstraint("category_id", "snapshot_timestamp")
 )
+
+#|--------------------------------------------------------------------------------------------|
+#|                                      DOMAIN: GLOBAL METRICS                                |
+#|--------------------------------------------------------------------------------------------|
+
+# Fact table: Snapshot-based global market indicators (dominance, volume, market cap) over time
+fact_global_market = Table(
+    "fact_global_market", metadata,
+
+    # Snapshot identifiant
+    Column("snapshot_timestamp", DateTime),                             # Spark -> to_timestamp
+    Column("snapshot_str", String, nullable=False),                     # Spark -> date_format lisible
+    Column("last_updated_timestamp", DateTime),                         # /global-metrics/quotes/latest -> to_timestamp (Spark)
+    Column("last_updated_str", String),                                 # /global-metrics/quotes/latest -> date_format with time (Spark)
+
+    # Dominance BTC / ETH
+    Column("btc_dominance", Float),                                     # /global-metrics/quotes/latest -> btc_dominance   
+    Column("eth_dominance", Float),                                     # /global-metrics/quotes/latest -> eth_dominance  
+    Column("btc_dominance_yesterday", Float),                           # /global-metrics/quotes/latest -> btc_dominance_yesterday  
+    Column("eth_dominance_yesterday", Float),                           # /global-metrics/quotes/latest -> eth_dominance_yesterday  
+    Column("btc_dominance_24h_change", Float),                          # /global-metrics/quotes/latest -> btc_dominance_24h_change  
+    Column("eth_dominance_24h_change", Float),                          # /global-metrics/quotes/latest -> eth_dominance_24h_change  
+    Column("btc_dominance_delta", Float),                               # KPI Spark = btc_dominance - btc_dominance_yesterday
+    Column("eth_dominance_delta", Float),                               # KPI Spark = eth_dominance - eth_dominance_yesterday
+    Column("check_btc_dominance_delta", Boolean),                       # KPI Spark = True when btc_dominance_delta != 0.0 null else False 
+    Column("check_eth_dominance_delta", Boolean),                       # KPI Spark = True when eth_dominance_delta != 0.0 else False 
+
+    # General counts
+    Column("active_cryptocurrencies", Integer),                         # /global-metrics/quotes/latest -> active_cryptocurrencies  
+    Column("total_cryptocurrencies", Integer),                          # /global-metrics/quotes/latest -> total_cryptocurrencies  
+    Column("active_market_pairs", Integer),                             # /global-metrics/quotes/latest -> active_market_pairs  
+    Column("active_exchanges", Integer),                                # /global-metrics/quotes/latest -> active_exchanges  
+    Column("total_exchanges", Integer),                                 # /global-metrics/quotes/latest -> total_exchanges  
+
+    # DeFi metrics
+    Column("defi_market_cap", Float),                                   # /global-metrics/quotes/latest -> defi_market_cap  
+    Column("defi_volume_24h", Float),                                   # /global-metrics/quotes/latest -> defi_volume_24h  
+    Column("defi_volume_24h_reported", Float),                          # /global-metrics/quotes/latest -> defi_volume_24h_reported  
+    Column("defi_24h_percentage_change", Float),                        # /global-metrics/quotes/latest -> defi_24h_percentage_change  
+    Column("defi_volume_share", Float),                                 # KPI Spark = defi_volume_24h / total_volume_24h
+    Column("check_defi_volume_share", Boolean),                         # KPI Spark = True when defi_volume_share != 0.0 else False 
+
+    # Stablecoins metrics
+    Column("stablecoin_market_cap", Float),                             # /global-metrics/quotes/latest -> stablecoin_market_cap  
+    Column("stablecoin_volume_24h", Float),                             # /global-metrics/quotes/latest -> stablecoin_volume_24h  
+    Column("stablecoin_volume_24h_reported", Float),                    # /global-metrics/quotes/latest -> stablecoin_volume_24h_reported  
+    Column("stablecoin_24h_percentage_change", Float),                  # /global-metrics/quotes/latest -> stablecoin_24h_percentage_change  
+    Column("stablecoin_market_share", Float),                           # KPI Spark = stablecoin_market_cap / total_market_cap
+    Column("check_stablecoin_market_share", Boolean),                   # KPI Spark = True when stablecoin_market_share != 0.0 else False 
+
+    # Derivatives
+    Column("derivatives_volume_24h", Float),                            # /global-metrics/quotes/latest -> derivatives_volume_24h  
+    Column("derivatives_volume_24h_reported", Float),                   # /global-metrics/quotes/latest -> derivatives_volume_24h_reported  
+    Column("derivatives_24h_percentage_change", Float),                 # /global-metrics/quotes/latest -> derivatives_24h_percentage_change  
+
+    # Altcoins
+    Column("altcoin_market_cap", Float),                                # /global-metrics/quotes/latest -> altcoin_market_cap
+    Column("altcoin_volume_24h", Float),                                # /global-metrics/quotes/latest -> altcoin_volume_24h  
+    Column("altcoin_volume_24h_reported", Float),                       # /global-metrics/quotes/latest -> altcoin_volume_24h_reported  
+
+    # Global market
+    Column("total_market_cap", Float),                                  # /global-metrics/quotes/latest -> total_market_cap
+    Column("total_volume_24h", Float),                                  # /global-metrics/quotes/latest -> total_volume_24h
+    Column("total_volume_24h_reported", Float),                         # /global-metrics/quotes/latest -> total_volume_24h_reported
+    Column("market_liquidity_ratio", Float),                            # KPI Spark = total_volume_24h / total_market_cap
+    Column("check_market_liquidity_ratio", Boolean),                    # KPI Spark = True when market_liquidity_ratio != 0.0 else False
+    Column("total_market_cap_yesterday", Float),                        # /global-metrics/quotes/latest -> total_market_cap_yesterday
+    Column("total_volume_24h_yesterday", Float),                        # /global-metrics/quotes/latest -> total_volume_24h_yesterday
+    Column("total_market_cap_yesterday_change", Float),                 # /global-metrics/quotes/latest -> total_market_cap_yesterday_change
+    Column("total_volume_24h_yesterday_change", Float),                 # /global-metrics/quotes/latest -> total_volume_24h_yesterday_change
+
+    # New crypto creation (growth)
+    Column("total_crypto_dex_currencies", Integer),                     # /global-metrics/quotes/latest -> total_crypto_dex_currencies
+    Column("new_cryptos_today", Integer),                               # /global-metrics/quotes/latest -> today_incremental_crypto_number
+    Column("new_cryptos_last_24h", Integer),                            # /global-metrics/quotes/latest -> past_24h_incremental_crypto_number
+    Column("new_cryptos_last_7d", Integer),                             # /global-metrics/quotes/latest -> past_7d_incremental_crypto_number
+    Column("new_cryptos_last_30d", Integer),                            # /global-metrics/quotes/latest -> past_30d_incremental_crypto_number
+    Column("new_cryptos_today_pct", Float),                             # /global-metrics/quotes/latest -> today_change_percent
+    Column("crypto_growth_rate_30d", Float),                            # KPI Spark = new_cryptos_last_30d / total_cryptocurrencies
+    Column("check_crypto_growth_rate_30d", Boolean),                    # KPI Spark = true when crypto_growth_rate_30d != 0.0 else Flase
+    Column("max_daily_new_cryptos", Integer),                           # /global-metrics/quotes/latest -> tracked_maxIncrementalNumber
+    Column("max_new_cryptos_day", Date),                                # /global-metrics/quotes/latest -> tracked_maxIncrementalDate
+    Column("min_daily_new_cryptos", Integer),                           # /global-metrics/quotes/latest -> tracked_minIncrementalNumber
+    Column("min_new_cryptos_day", Date),                                # /global-metrics/quotes/latest -> tracked_minIncrementalDate
+
+    PrimaryKeyConstraint("snapshot_timestamp")
+)
+
+# -------------------------------------------------------------------------------------------------
+# The `check_*` attributes serve as boolean flags indicating whether each calculated KPI
+# (e.g., dominance_delta, liquidity_ratio, volume_share) has a meaningful value.
+# They are set to True when the corresponding KPI is non-zero and valid,
+# allowing downstream tools (SQL, BI, ML) to easily filter out placeholder or default values.
+# This improves the reliability of analytics and avoids misleading zero values.
+# -------------------------------------------------------------------------------------------------
+
+
+#|--------------------------------------------------------------------------------------------|
+#|                                      DOMAIN: FEAR & GREED                                  | 
+#|--------------------------------------------------------------------------------------------|
