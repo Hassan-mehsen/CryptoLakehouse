@@ -303,3 +303,15 @@ fact_global_market = Table(
 #|--------------------------------------------------------------------------------------------|
 #|                                      DOMAIN: FEAR & GREED                                  | 
 #|--------------------------------------------------------------------------------------------|
+
+# Fact table: Daily market sentiment index (Fear & Greed)
+fact_market_sentiment = Table(
+    "fact_market_sentiment", metadata,
+
+    Column("snapshot_timestamp", DateTime),                   # Spark -> to_timestamp
+    Column("snapshot_str", String, nullable=False),           # Spark -> date_format ("yyyy-MM-dd")
+    Column("fear_greed_score", Integer),                      # /fear-and-greed/latest -> value (0–100)
+    Column("sentiment_label", String(20)),                    # /fear-and-greed/latest -> value_classification
+
+    PrimaryKeyConstraint("snapshot_timestamp")
+)
