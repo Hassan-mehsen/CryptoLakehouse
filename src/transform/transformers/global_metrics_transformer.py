@@ -49,8 +49,7 @@ class GlobalMetricsTransformer(BaseTransformer):
         self._run_build_step(
             "fact_global_market",
             lambda: self.__prepare_global_market_df(latest_snapshot),
-            "fact_global_market",
-            mode="append",
+            "fact_global_market"
         )
         self.log_section("End GlobalMetricsTransformer")
 

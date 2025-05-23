@@ -32,12 +32,11 @@ class FearAndGreedTransformer(BaseTransformer):
 
         This method is intended to be run only once to populate the table with
         historical sentiment scores. All subsequent updates should use the
-        `build_market_sentiment_fact()` method for appending live data.
+        `build_market_sentiment_fact()`.
 
         Steps:
         - Loads a historical snapshot from `fear_and_greed_data`
         - Transforms it using `__prepare_market_sentiment_history()`
-        - Writes the full result to the Silver layer (append mode)
         """
         self.log_section("Running FearAndGreedTransformer [History Init]")
 
@@ -55,14 +54,14 @@ class FearAndGreedTransformer(BaseTransformer):
         self._run_build_step(
             "market_sentiment_history",
             lambda: self.__prepare_market_sentiment_history(latest_snapshot),
-            "fact_market_sentiment",
+            "fact_market_sentiment"
         )
 
         self.log_section("End FearAndGreedTransformer [History Init]")
 
     def build_market_sentiment_fact(self) -> None:
         """
-        Appends daily Fear & Greed index data to the `fact_market_sentiment` table.
+        Transform daily Fear & Greed index data to the `fact_market_sentiment` table.
 
         This method should be scheduled as part of the regular ETL workflow to
         enrich the sentiment table with the most recent data.
@@ -70,7 +69,7 @@ class FearAndGreedTransformer(BaseTransformer):
         Steps:
         - Loads the most recent live snapshot from `fear_and_greed_data`
         - Transforms it using `__prepare_market_sentiment_df()`
-        - Appends the result to the existing Silver Delta table
+        - Writing the result to the existing Silver Delta table
         """
         self.log_section("Running FearAndGreedTransformer [Live Update]")
 
@@ -88,8 +87,7 @@ class FearAndGreedTransformer(BaseTransformer):
         self._run_build_step(
             "fact_market_sentiment",
             lambda: self.__prepare_market_sentiment_df(latest_snapshot),
-            "fact_market_sentiment",
-            mode="append",
+            "fact_market_sentiment"
         )
 
         self.log_section("End FearAndGreedTransformer [Live Update]")

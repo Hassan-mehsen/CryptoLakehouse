@@ -92,7 +92,7 @@ class BaseTransformer:
             "notes": "-",
         }
 
-        # Tables eligible for OPTIMIZE after each write (lightweight append workloads)
+        # Tables eligible for OPTIMIZE after each write (lightweight workloads)
         self.optimize_tables = {"fact_market_sentiment", "fact_global_market"}
 
         # Domains where tables should be vacuumed after write
@@ -166,32 +166,39 @@ class BaseTransformer:
         relative_path: str,
         mode: str = "overwrite",
         partition_by: Optional[List[str]] = None,
-        vacuum: bool = True
+        vacuum: bool = False,
+        optimize: bool = False
     ) -> str:
         """
         Writes a DataFrame to Delta Lake format in the Silver layer of the data lake.
 
-        This method centralizes the writing logic with full support for:
+        This method centralizes the Delta write logic and supports:
         - Schema evolution (`overwriteSchema` or `mergeSchema`)
-        - Optional partitioning on one or more columns
-        - Post-write optimization (`OPTIMIZE + VACUUM`) for small/frequent tables
-        - Optional retention cleanup (`VACUUM`) for large Delta domains like 'exchange' or 'crypto'
+        - Optional partitioning by one or more columns
+        - Optional Delta Lake optimizations (`OPTIMIZE` and `VACUUM`) for small or heavy tables
+        - Structured logging and post-write cleanup
 
-        Post-write behavior:
-        - If `relative_path` belongs to `self.optimize_tables`, small file compaction is triggered
-        via Delta Lake `OPTIMIZE` + `VACUUM (7 days)` to reduce file fragmentation.
-        - If `self.domain` is listed in `self.vacuum_domains` **and** `vacuum=True`, a heavier cleanup
-        via `VACUUM (30 days)` is triggered to purge old Delta files and reduce storage usage.
+        ### Post-write behavior:
+
+        - If `relative_path` is listed in `self.optimize_tables` **and** `optimize=True`:
+            → Applies `OPTIMIZE` to compact small files  
+            → Follows with `VACUUM` (7 days) to clean up obsolete data files
+
+        - If `self.domain` is in `self.vacuum_domains` **and** `vacuum=True`:
+            → Triggers a heavier `VACUUM` with 30-day retention to purge outdated files
+
+        These maintenance steps help improve query performance and manage disk space.
 
         Args:
-            df (DataFrame): Spark DataFrame to persist.
-            relative_path (str): Subdirectory of the domain folder (e.g., 'fact_crypto_market').
-            mode (str): Write mode ('overwrite', 'append', 'ignore', or 'error'). Default: 'overwrite'.
-            partition_by (Optional[List[str]]): Columns to partition the Delta table by.
-            vacuum (bool): Whether to trigger a long-retention (30d) VACUUM post-write. Default: True.
+            df (DataFrame): The Spark DataFrame to write.
+            relative_path (str): Subdirectory under the domain folder (e.g., 'fact_crypto_market').
+            mode (str): Write mode ('overwrite', 'append', 'ignore', or 'error'). Default is 'overwrite'.
+            partition_by (Optional[List[str]]): Column(s) to partition the Delta table by (optional).
+            vacuum (bool): Whether to apply long-retention (30 days) VACUUM for heavy domains. Default is False.
+            optimize (bool): Whether to apply Delta `OPTIMIZE` + 7-day `VACUUM` for small row tables. Default is False.
 
         Returns:
-            str: 'ok' if the write and post-processing succeed, 'ko' otherwise.
+            str: 'ok' if write and post-steps succeed, 'ko' otherwise.
         """
 
         full_path = self.silver_data_path / self.domain / relative_path
@@ -214,7 +221,7 @@ class BaseTransformer:
             self.log(f"Write successful in mode {mode} to: {full_path}", table_name=relative_path)
 
             # OPTIMIZE + VACUUM (7d) for small/frequent Delta tables
-            if relative_path in self.optimize_tables:
+            if relative_path in self.optimize_tables and optimize:
                 self.log(f"[OPTIMIZE] Compacting small files for {relative_path}...", table_name=relative_path)
                 self.spark.sql(f"REFRESH TABLE delta.`{full_path}`")
                 DeltaTable.forPath(self.spark, str(full_path)).optimize().executeCompaction()

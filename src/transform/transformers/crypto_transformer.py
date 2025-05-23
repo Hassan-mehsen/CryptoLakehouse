@@ -129,7 +129,7 @@ class CryptoTransformer(BaseTransformer):
             self.log("dim_crypto_map is up to date. Skipping transformation.", table_name="crypto_map_dim")
             return
 
-        self._run_build_step("dim_crypto_map", self.__prepare_dim_crypto_map_df, "dim_crypto_map", mode="append")
+        self._run_build_step("dim_crypto_map", self.__prepare_dim_crypto_map_df, "dim_crypto_map")
 
     def build_crypto_info_dim(self) -> None:
         """
@@ -202,9 +202,7 @@ class CryptoTransformer(BaseTransformer):
             return
 
         # Run the build step by invoking the preparation function
-        self._run_build_step(
-            "crypto_market_fact", lambda: self.__prepare_fact_crypto_market_df(batch_paths), "crypto_market_fact", mode="append"
-        )
+        self._run_build_step("crypto_market_fact", lambda: self.__prepare_fact_crypto_market_df(batch_paths), "crypto_market_fact")
 
     def build_crypto_categories_dim(self) -> None:
         """
@@ -275,9 +273,7 @@ class CryptoTransformer(BaseTransformer):
             self.log("crypto_category_fact is up to date. Skipping transformation.", table_name="crypto_categories_fact")
             return
 
-        self._run_build_step(
-            "crypto_category_fact", self.__prepare_fact_crypto_category_df, "crypto_category_fact", mode="append"
-        )
+        self._run_build_step("crypto_category_fact", self.__prepare_fact_crypto_category_df, "crypto_category_fact")
 
     def build_crypto_category_link(self) -> None:
         """

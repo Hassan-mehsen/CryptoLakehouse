@@ -111,11 +111,10 @@ class ExchangeTransformer(BaseTransformer):
         - Depends entirely on the broadcasted data from `build_exchange_info_dim`
         - Does not perform snapshot freshness check, since the broadcasted data is transient
         - Delegates the preparation to `__prepare_dim_exchange_map_df`
-        - Writes the data in append mode via `_run_build_step`
         """
         self.log(style="\n")
 
-        self._run_build_step("dim_exchange_map", self.__prepare_dim_exchange_map_df, "dim_exchange_map", mode="append")
+        self._run_build_step("dim_exchange_map", self.__prepare_dim_exchange_map_df, "dim_exchange_map")
 
     def build_exchange_assets_fact(self) -> None:
         """
@@ -126,7 +125,6 @@ class ExchangeTransformer(BaseTransformer):
         - Skips transformation if the snapshot was already processed (checked via metadata timestamp)
         - Delegates the preparation to `__prepare_exchange_assets_df`
         - Delegates writing, logging, and metadata tracking to `_run_build_step`
-        - Appends new data to the existing Delta table
         """
         self.log(style="\n")
         
@@ -144,7 +142,6 @@ class ExchangeTransformer(BaseTransformer):
             "fact_exchange_assets",
             lambda: self.__prepare_exchange_assets_df(latest_snapshot),
             "fact_exchange_assets",
-            mode="append",
         )
 
     def run(self):
