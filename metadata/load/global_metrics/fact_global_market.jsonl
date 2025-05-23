@@ -1,0 +1,1 @@
+{"table": "fact_global_market", "domain": "global_metrics", "status": "loaded", "record_count": 1, "mode": "append", "started_at": "2025-05-23T22:00:32.940261+00:00", "ended_at": "2025-05-23T22:00:32.940261+00:00", "transformation_ended_at": "2025-05-23T21:59:21.825695+00:00", "notes": "Load from transformed global metrics delta table"}

@@ -1,0 +1,37 @@
+
+"Load execution trace for table: fact_global_market"
+"This section logs the full execution context:"
+  " - Start and end markers for visibility"
+  " - Metadata resolution from transform/load layers"
+  " - Delta table read (with versioning support)"
+  " - DataFrame inspection (row count, schema)"
+  " - PostgreSQL write confirmation"
+  " - Metadata persistence for audit & future skips"
+==================================================
+      Loading Started for fact_global_market      
+==================================================
+[2025-05-23 22:00:32] [LOAD] [GLOBALMETRICSLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/load/global_metrics/fact_global_market.jsonl 
+[2025-05-23 22:00:32] [LOAD] [GLOBALMETRICSLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/global_metrics/fact_global_market.jsonl 
+[2025-05-23 22:00:32] [LOAD] [GLOBALMETRICSLOADER] [fact_global_market] New transformation detected. Proceeding to load. 
+[2025-05-23 22:00:32] [LOAD] [GLOBALMETRICSLOADER] [fact_global_market] Reading Delta table from: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/global_metrics/fact_global_market 
+[2025-05-23 22:00:32] [LOAD] [GLOBALMETRICSLOADER] LOADING FACT_GLOBAL_MARKET 
+[2025-05-23 22:00:32] [LOAD] [GLOBALMETRICSLOADER] [fact_global_market] Row count: 1 | Schema: struct<snapshot_timestamp:timestamp,snapshot_str:string,last_updated_timestamp:timestamp,last_updated_str:string,btc_dominance:double,eth_dominance:double,btc_dominance_yesterday:double,eth_dominance_yesterday:double,btc_dominance_24h_change:double,eth_dominance_24h_change:double,btc_dominance_delta:double,eth_dominance_delta:double,check_btc_dominance_delta:boolean,check_eth_dominance_delta:boolean,active_cryptocurrencies:int,total_cryptocurrencies:int,active_market_pairs:int,active_exchanges:int,total_exchanges:int,defi_market_cap:double,defi_volume_24h:double,defi_volume_24h_reported:double,defi_24h_percentage_change:double,defi_volume_share:double,check_defi_volume_share:boolean,stablecoin_market_cap:double,stablecoin_volume_24h:double,stablecoin_volume_24h_reported:double,stablecoin_24h_percentage_change:double,stablecoin_market_share:double,check_stablecoin_market_share:boolean,derivatives_volume_24h:double,derivatives_volume_24h_reported:double,derivatives_24h_percentage_change:double,altcoin_market_cap:double,altcoin_volume_24h:double,altcoin_volume_24h_reported:double,total_market_cap:double,total_volume_24h:double,total_volume_24h_reported:double,market_liquidity_ratio:double,check_market_liquidity_ratio:boolean,total_market_cap_yesterday:double,total_volume_24h_yesterday:double,total_market_cap_yesterday_change:double,total_volume_24h_yesterday_change:double,total_crypto_dex_currencies:int,new_cryptos_today:int,new_cryptos_last_24h:int,new_cryptos_last_7d:int,new_cryptos_last_30d:int,new_cryptos_today_pct:double,crypto_growth_rate_30d:double,check_crypto_growth_rate_30d:boolean,max_daily_new_cryptos:int,max_new_cryptos_day:date,min_daily_new_cryptos:int,min_new_cryptos_day:date> 
+[2025-05-23 22:00:32] [LOAD] [GLOBALMETRICSLOADER] [fact_global_market] Successfully wrote 1 rows to fact_global_market 
+[2025-05-23 22:00:32] [LOAD] [GLOBALMETRICSLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/global_metrics/fact_global_market.jsonl 
+[2025-05-23 22:00:32] [LOAD] [GLOBALMETRICSLOADER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/load/global_metrics/fact_global_market.jsonl 
+[2025-05-23 22:00:32] [LOAD] [GLOBALMETRICSLOADER] [fact_global_market] Loaded operation for fact_global_market succeeded 
+
+==================================================
+       Loading Ended for fact_global_market       
+==================================================
+"If no new transformation is detected, the load is skipped."
+==================================================
+      Loading Started for fact_global_market      
+==================================================
+[2025-05-23 22:03:36] [LOAD] [GLOBALMETRICSLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/load/global_metrics/fact_global_market.jsonl 
+[2025-05-23 22:03:36] [LOAD] [GLOBALMETRICSLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/global_metrics/fact_global_market.jsonl 
+[2025-05-23 22:03:36] [LOAD] [GLOBALMETRICSLOADER] [fact_global_market] No new transformation since last load. Skipping. 
+
+==================================================
+      Loading Skipped for fact_global_market      
+==================================================
