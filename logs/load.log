@@ -35,3 +35,67 @@
 ==================================================
       Loading Skipped for fact_global_market      
 ==================================================
+
+
+"Load execution trace for table: fact_market_sentiment"
+"This section logs the lifecycle of three distinct load attempts:"
+
+"First block -- Loading new data into the DWH"
+"   - No prior metadata found -> load is triggered"
+"   - Delta table read -> rows written to DWH"
+"   - After load, metadata snapshot is persisted to track the version"
+
+"Logs include:"
+"   - Metadata resolution"
+"   - Delta read operation"
+"   - DWH write confirmation (or skip)"
+"   - Sectional visual markers for readability"
+==================================================
+    Loading Started for fact_market_sentiment     
+==================================================
+[2025-05-24 14:03:42] [LOAD] [FEARANDGREEDLOADER] [INFO] No existing metadata for fact_market_sentiment 
+[2025-05-24 14:03:42] [LOAD] [FEARANDGREEDLOADER] [fact_market_sentiment] Data is not loaded yet. Proceeding... 
+[2025-05-24 14:03:42] [LOAD] [FEARANDGREEDLOADER] [fact_market_sentiment] Reading Delta table from: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/fear_and_greed/fact_market_sentiment 
+[2025-05-24 14:03:42] [LOAD] [FEARANDGREEDLOADER] LOADING FACT_MARKET_SENTIMENT 
+[2025-05-24 14:03:42] [LOAD] [FEARANDGREEDLOADER] [fact_market_sentiment] Row count: 505 | Schema: struct<snapshot_timestamp:timestamp,snapshot_str:string,fear_greed_score:int,sentiment_label:string> 
+[2025-05-24 14:03:42] [LOAD] [FEARANDGREEDLOADER] [fact_market_sentiment] Successfully wrote 503 rows to fact_market_sentiment 
+[2025-05-24 14:03:42] [LOAD] [FEARANDGREEDLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/fear_and_greed/fact_market_sentiment.jsonl 
+[2025-05-24 14:03:42] [LOAD] [FEARANDGREEDLOADER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/load/fear_and_greed/fact_market_sentiment.jsonl 
+[2025-05-24 14:03:42] [LOAD] [FEARANDGREEDLOADER] [fact_market_sentiment] Loaded operation for fact_market_sentiment succeeded 
+
+==================================================
+     Loading Ended for fact_market_sentiment      
+==================================================
+"Second block -- Re-evaluation of already loaded data"
+"   - Same transform version detected -> load is skipped"
+"   - Demonstrates idempotent behavior via metadata comparison"
+==================================================
+    Loading Started for fact_market_sentiment     
+==================================================
+[2025-05-24 14:05:13] [LOAD] [FEARANDGREEDLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/load/fear_and_greed/fact_market_sentiment.jsonl 
+[2025-05-24 14:05:13] [LOAD] [FEARANDGREEDLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/fear_and_greed/fact_market_sentiment.jsonl 
+[2025-05-24 14:05:13] [LOAD] [FEARANDGREEDLOADER] [fact_market_sentiment] No new transformation since last load. Skipping. 
+
+==================================================
+    Loading Skipped for fact_market_sentiment     
+==================================================
+"Third block -- New transformed data detected"
+"   - New Delta version found -> load is re-triggered"
+"   - Successfully written and metadata updated accordingly"
+==================================================
+    Loading Started for fact_market_sentiment     
+==================================================
+[2025-05-24 14:06:28] [LOAD] [FEARANDGREEDLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/load/fear_and_greed/fact_market_sentiment.jsonl 
+[2025-05-24 14:06:28] [LOAD] [FEARANDGREEDLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/fear_and_greed/fact_market_sentiment.jsonl 
+[2025-05-24 14:06:28] [LOAD] [FEARANDGREEDLOADER] [fact_market_sentiment] New transformation detected. Proceeding to load. 
+[2025-05-24 14:06:28] [LOAD] [FEARANDGREEDLOADER] [fact_market_sentiment] Reading Delta table from: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/fear_and_greed/fact_market_sentiment 
+[2025-05-24 14:06:28] [LOAD] [FEARANDGREEDLOADER] LOADING FACT_MARKET_SENTIMENT 
+[2025-05-24 14:06:28] [LOAD] [FEARANDGREEDLOADER] [fact_market_sentiment] Row count: 1 | Schema: struct<snapshot_timestamp:timestamp,snapshot_str:string,fear_greed_score:int,sentiment_label:string> 
+[2025-05-24 14:06:28] [LOAD] [FEARANDGREEDLOADER] [fact_market_sentiment] Successfully wrote 1 rows to fact_market_sentiment 
+[2025-05-24 14:06:28] [LOAD] [FEARANDGREEDLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/fear_and_greed/fact_market_sentiment.jsonl 
+[2025-05-24 14:06:28] [LOAD] [FEARANDGREEDLOADER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/load/fear_and_greed/fact_market_sentiment.jsonl 
+[2025-05-24 14:06:28] [LOAD] [FEARANDGREEDLOADER] [fact_market_sentiment] Loaded operation for fact_market_sentiment succeeded 
+
+==================================================
+     Loading Ended for fact_market_sentiment      
+==================================================
