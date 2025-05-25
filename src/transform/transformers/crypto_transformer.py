@@ -34,7 +34,7 @@ class CryptoTransformer(BaseTransformer):
         super().__init__(spark)
 
         # Stores the latest snapshot path from /cryptocurrency/map,
-        # shared between dim_crypto_identity and dim_crypto_map transformations
+        # shared between dim_crypto_id and dim_crypto_map transformations
         self.last_map_snapshot = None
 
         # Stores the latest snapshot path from /cryptocurrency/categories and /category,
@@ -63,34 +63,34 @@ class CryptoTransformer(BaseTransformer):
         self.build_crypto_id_dim()
         self.build_crypto_map_dim()
         self.build_crypto_info_dim()
-        self.build_crypto_market_fact()
+        self.build_fact_crypto_market()
         self.build_crypto_category_link()
-        self.build_crypto_categories_dim()
-        self.build_crypto_category_fact()
+        self.build_dim_crypto_category()
+        self.build_fact_crypto_category()
         self.log_section("End CryptoTransformer")
 
     def build_crypto_id_dim(self) -> None:
         """
-        Orchestrates the transformation of the dim_crypto_identity table from the latest crypto_map snapshot.
+        Orchestrates the transformation of the `dim_crypto_id` table from the latest crypto_map snapshot.
 
-        This method:
-        - Locates the most recent snapshot file from the 'crypto_map_data' folder
-        - Skips transformation if no new snapshot is available (based on metadata and daily comparison)
-        - Triggers the cleaning/transformation via `__prepare_dim_crypto_id_df()`
-        - Delegates writing and metadata tracking to `_run_build_step()`
+        Responsibilities:
+        - Retrieves the most recent snapshot file from the `bronze/data/crypto_map_data` directory
+        - Skips the transformation if the data has already been processed (based on metadata and snapshot freshness)
+        - Delegates the actual transformation to `__prepare_dim_crypto_id_df()` via `_run_build_step`
 
         Notes:
-        - `self.last_map_snapshot` is implicitly updated inside `__prepare_dim_crypto_id_df()`
-        - This method should be run before `build_crypto_map_dim()` to ensure the snapshot context is set
+        - Updates `self.last_map_snapshot` to maintain snapshot context across dependent transformations
+        - This method should be executed before `build_crypto_map_dim()` to ensure consistency in the snapshot lineage
 
         Returns:
             None
         """
+
         self.log(style="\n")
 
         snapshot_paths = self.find_latest_data_files("crypto_map_data")
         if not snapshot_paths:
-            self.log("No snapshot available for dim_crypto_identity. Skipping", table_name="crypto_id_dim")
+            self.log("No snapshot available for dim_crypto_id. Skipping", table_name="crypto_id_dim")
             return None
 
         last_snapshot = snapshot_paths[0]
@@ -100,23 +100,29 @@ class CryptoTransformer(BaseTransformer):
             self.log("[ERROR] No snapshot set for crypto_id. Aborting.", table_name="crypto_id_dim")
             return
 
-        if not self.should_transform("dim_crypto_identity", last_snapshot, force=False, daily_comparison=True):
-            self.log("dim_crypto_identity is up to date. Skipping transformation.", table_name="crypto_id_dim")
+        if not self.should_transform("dim_crypto_id", last_snapshot, force=False, daily_comparison=True):
+            self.log("dim_crypto_id is up to date. Skipping transformation.", table_name="crypto_id_dim")
             return
 
-        self._run_build_step("dim_crypto_identity", lambda: self.__prepare_dim_crypto_id_df(last_snapshot), "dim_crypto_identity")
+        self._run_build_step("dim_crypto_id", lambda: self.__prepare_dim_crypto_id_df(last_snapshot), "dim_crypto_id")
 
     def build_crypto_map_dim(self) -> None:
         """
-        Builds the dim_crypto_map table from the same snapshot used for dim_crypto_identity.
+        Builds the `dim_crypto_map` table using the same snapshot previously assigned via `build_crypto_id_dim()`.
 
-        Requires:
-            - `self.last_map_snapshot` to be set via `build_crypto_id_dim()`.
-            - That transformation is only applied if the snapshot is newer than the last one.
+        Responsibilities:
+        - Validates that `self.last_map_snapshot` is set (dependency on `build_crypto_id_dim()`)
+        - Checks whether the snapshot has already been processed using metadata freshness
+        - Delegates transformation to `__prepare_dim_crypto_map_df()` via `_run_build_step`
+
+        Notes:
+        - This method must be called after `build_crypto_id_dim()` to maintain snapshot consistency across the crypto identity pipeline
+        - Ensures aligned and traceable lineage between ID mapping and rank/map information
 
         Returns:
             None
         """
+
         self.log(style="\n")
 
         if self.last_map_snapshot is None:
@@ -133,17 +139,17 @@ class CryptoTransformer(BaseTransformer):
 
     def build_crypto_info_dim(self) -> None:
         """
-        Orchestrates the transformation of the dim_crypto_info table from the latest crypto information snapshot.
+        Builds the `dim_crypto_info` table from the latest available snapshot in the `crypto_info_data` directory.
 
-        This method:
-        - Retrieves the latest snapshot from the 'crypto_info_data' directory
-        - Skips processing if the data has already been transformed (based on metadata)
-        - Triggers the data preparation via `__prepare_dim_crypto_info_df`
-        - Delegates writing and metadata tracking to `_run_build_step`
+        Responsibilities:
+        - Loads the most recent snapshot file from the Bronze layer
+        - Verifies whether the snapshot has already been transformed using metadata freshness
+        - Delegates the actual transformation logic to `__prepare_dim_crypto_info_df()` via `_run_build_step`
+        - Updates `self.last_map_snapshot` with the current snapshot path for consistency across related methods
 
         Notes:
-        - Updates `self.last_map_snapshot` with the current snapshot path
-        - Ensures the table is built only when necessary to avoid redundant processing
+        - This dimension includes technical metadata, descriptions, URLs, launch dates, and classification fields
+        - Should be run after `build_crypto_id_dim()` to maintain alignment across crypto dimensions
 
         Returns:
             None
@@ -162,29 +168,30 @@ class CryptoTransformer(BaseTransformer):
             self.log("[ERROR] No snapshot set for dim_crypto_info. Aborting.", table_name="crypto_info_dim")
             return
 
-        if not self.should_transform("dim_crypto_info", last_snapshot, force=False, daily_comparison=False):
+        if not self.should_transform("dim_crypto_info", last_snapshot, force=False, daily_comparison=True):
             self.log("dim_crypto_info is up to date. Skipping transformation.", table_name="crypto_info_dim")
             return
 
         self._run_build_step("dim_crypto_info", lambda: self.__prepare_dim_crypto_info_df(last_snapshot), "dim_crypto_info")
 
-    def build_crypto_market_fact(self) -> None:
+    def build_fact_crypto_market(self) -> None:
         """
-        Orchestrates the transformation of the fact_crypto_market table from the latest snapshot batch.
+        Orchestrates the transformation of the `fact_crypto_market` table using the latest batch of snapshot files.
 
-        This method:
-        - Retrieves the most recent batch of Parquet files from the 'crypto_listings_latest_data' directory
-        - Validates whether the data has already been processed (to avoid redundant transformations)
-        - Triggers the data preparation via `__prepare_fact_crypto_market_df`
-        - Delegates writing and metadata management to `_run_build_step`
+        Responsibilities:
+        - Retrieves the latest complete batch from `data/bronze/crypto_listings_latest_data` (multiple Parquet files)
+        - Validates whether the batch has already been processed using metadata tracking
+        - Delegates the actual transformation to `__prepare_fact_crypto_market_df()` via `_run_build_step`
+        - Handles logging, writing to Delta Lake, and metadata persistence
 
         Notes:
-        - Only one file from the batch is checked for freshness, as all batch files are processed together
-        - This table includes KPIs such as market cap ratios, supply utilization, and volume metrics
+        - This transformation computes KPIs like market cap ratios, supply utilization, and price change metrics
+        - Only one representative file from the batch is used to determine freshness (assumes atomic batch logic)
 
         Returns:
             None
         """
+
         self.log(style="\n")
 
         batch_paths = self.find_latest_batch("crypto_listings_latest_data")
@@ -192,31 +199,31 @@ class CryptoTransformer(BaseTransformer):
         if not batch_paths:
             self.log(
                 "[SKIP] No snapshot found in directory: crypto_listings_latest_data. Skipping transformation.",
-                table_name="crypto_market_fact",
+                table_name="fact_crypto_market",
             )
             return None
 
         # Check if one file from the batch has already been processed (all 5 are treated together)
-        if not self.should_transform("crypto_market_fact", batch_paths[0], force=False, daily_comparison=False):
-            self.log("crypto_market_fact is up to date. Skipping transformation.", table_name="crypto_market_fact")
+        if not self.should_transform("fact_crypto_market", batch_paths[0], force=False, daily_comparison=False):
+            self.log("fact_crypto_market is up to date. Skipping transformation.", table_name="fact_crypto_market")
             return
 
         # Run the build step by invoking the preparation function
-        self._run_build_step("crypto_market_fact", lambda: self.__prepare_fact_crypto_market_df(batch_paths), "crypto_market_fact")
+        self._run_build_step("fact_crypto_market", lambda: self.__prepare_fact_crypto_market_df(batch_paths), "fact_crypto_market")
 
-    def build_crypto_categories_dim(self) -> None:
+    def build_dim_crypto_category(self) -> None:
         """
-        Orchestrates the transformation of the dim_crypto_categories table from the latest category snapshot.
+        Orchestrates the transformation of the `dim_crypto_categories` table from the latest category snapshot.
 
         This method:
-        - Retrieves the latest snapshot file from the 'crypto_categories_data' directory
-        - Skips the transformation if the data is already up to date (based on metadata)
-        - Triggers the cleaning and structuring logic via `__prepare_dim_crypto_categories_df`
-        - Broadcasts category metrics for later use in the fact table
-        - Delegates writing and metadata tracking to `_run_build_step`
+        - Retrieves the latest snapshot file from the `data/bronze/crypto_categories_data` directory
+        - Skips transformation if the snapshot was already processed (based on metadata)
+        - Stores the snapshot reference in `self.last_categories_snapshot` for downstream use
+        - Delegates the actual transformation to `__prepare_dim_crypto_categories_df()` via `_run_build_step`
+        - Broadcasts cleaned category metrics for reuse in fact table construction
 
         Notes:
-        - Updates `self.last_categories_snapshot` to ensure consistency for `fact_crypto_category`
+        - `self.last_categories_snapshot` is reused by `fact_crypto_category` to ensure snapshot consistency
 
         Returns:
             None
@@ -225,37 +232,36 @@ class CryptoTransformer(BaseTransformer):
 
         snapshot_paths = self.find_latest_data_files("crypto_categories_data")
         if not snapshot_paths:
-            self.log("No snapshot available for crypto_categories_dim. Skipping", table_name="crypto_categories_dim")
+            self.log("No snapshot available for dim_crypto_category. Skipping", table_name="dim_crypto_category")
             return None
 
         last_snapshot = snapshot_paths[0]
         self.last_categories_snapshot = last_snapshot
 
         if last_snapshot is None:
-            self.log("[ERROR] No snapshot set for crypto_categories_dim. Aborting.", table_name="crypto_categories_dim")
+            self.log("[ERROR] No snapshot set for dim_crypto_category. Aborting.", table_name="dim_crypto_category")
             return
 
-        if not self.should_transform("crypto_categories_dim", last_snapshot, force=False, daily_comparison=False):
-            self.log("crypto_categories_dim is up to date. Skipping transformation.", table_name="crypto_categories_dim")
+        if not self.should_transform("dim_crypto_category", last_snapshot, force=False, daily_comparison=False):
+            self.log("dim_crypto_category is up to date. Skipping transformation.", table_name="dim_crypto_category")
             return
 
         self._run_build_step(
-            "crypto_categories_dim", lambda: self.__prepare_dim_crypto_categories_df(last_snapshot), "crypto_categories_dim"
+            "dim_crypto_category", lambda: self.__prepare_dim_crypto_categories_df(last_snapshot), "dim_crypto_category"
         )
 
-    def build_crypto_category_fact(self) -> None:
+    def build_fact_crypto_category(self) -> None:
         """
-        Builds the fact_crypto_category table using the broadcasted metrics from the latest category snapshot.
+        Orchestrates the transformation of the `fact_crypto_category` table using broadcasted category metrics.
 
-        This method:
-        - Ensures that the latest category snapshot has been processed via `build_crypto_categories_dim`
-        - Validates whether the fact table needs to be updated (based on metadata)
-        - Triggers KPI enrichment logic via `__prepare_fact_crypto_category_df`
-        - Delegates writing and lineage tracking to `_run_build_step`
+        Responsibilities:
+        - Verifies that the latest category snapshot has been loaded via `build_dim_crypto_category`
+        - Checks if the data has already been processed (based on snapshot freshness metadata)
+        - Delegates KPI enrichment and preparation to `__prepare_fact_crypto_category_df()` via `_run_build_step`
 
         Notes:
-        - KPIs include ratios such as volume/market_cap, change rates, and dominance per token
         - Depends on `self.broadcasted_crypto_categories_metrics` and `self.last_categories_snapshot`
+        - KPIs include: volume/market_cap ratio, change rates, token dominance, etc.
 
         Returns:
             None
@@ -264,26 +270,28 @@ class CryptoTransformer(BaseTransformer):
 
         if self.last_categories_snapshot is None:
             self.log(
-                "[ERROR] No snapshot set for crypto_category_fact. Please run build_crypto_categories_dim() first.",
+                "[ERROR] No snapshot set for fact_crypto_category. Please run build_dim_crypto_category() first.",
                 table_name="crypto_categories_fact",
             )
             return
 
-        if not self.should_transform("crypto_category_fact", self.last_categories_snapshot, force=False, daily_comparison=True):
-            self.log("crypto_category_fact is up to date. Skipping transformation.", table_name="crypto_categories_fact")
+        if not self.should_transform("fact_crypto_category", self.last_categories_snapshot, force=False):
+            self.log("fact_crypto_category is up to date. Skipping transformation.", table_name="crypto_categories_fact")
             return
 
-        self._run_build_step("crypto_category_fact", self.__prepare_fact_crypto_category_df, "crypto_category_fact")
+        self._run_build_step("fact_crypto_category", self.__prepare_fact_crypto_category_df, "fact_crypto_category")
 
     def build_crypto_category_link(self) -> None:
         """
-        Builds the dim_crypto_category_link table from the latest available snapshot.
+        Orchestrates the transformation of the `dim_crypto_category_link` table from the latest snapshot.
 
-        This method:
-        - Locates the most recent snapshot file in the 'crypto_category_data' directory
-        - Skips transformation if no new snapshot is available or if up-to-date
-        - Triggers data preparation via `__prepare_dim_crypto_category_link_df`
-        - Delegates writing and metadata handling to `_run_build_step`
+        Responsibilities:
+        - Retrieves the most recent snapshot from the 'crypto_category_data' directory
+        - Skips the transformation if the data has already been processed (based on metadata)
+        - Delegates the preparation logic to `__prepare_dim_crypto_category_link_df` via `_run_build_step`
+
+        Notes:
+        - This table maps individual cryptocurrencies to their associated categories
 
         Returns:
             None
@@ -296,7 +304,7 @@ class CryptoTransformer(BaseTransformer):
             return None
 
         last_snapshot = snapshot_paths[0]
-        self.last_map_snapshot = last_snapshot
+        #self.last_map_snapshot = last_snapshot
 
         if last_snapshot is None:
             self.log("[ERROR] No snapshot set for crypto_category_link. Aborting.", table_name="crypto_categories_link")
@@ -316,7 +324,7 @@ class CryptoTransformer(BaseTransformer):
 
     def __prepare_dim_crypto_id_df(self, latest_snapshot: str) -> Optional[Tuple[DataFrame, str]]:
         """
-        Prepares the dim_crypto_identity table from the latest crypto_map snapshot.
+        Prepares the dim_crypto_id table from the latest crypto_map snapshot.
 
         This method:
         - Reads a typed Parquet snapshot containing crypto identity fields
@@ -374,13 +382,13 @@ class CryptoTransformer(BaseTransformer):
             .dropDuplicates(subset=["crypto_id"])
         )
 
-        self.log_dataframe_info(crypto_id_df, "Cleaned dim_crypto_identity", table_name="crypto_id_dim")
+        self.log_dataframe_info(crypto_id_df, "Cleaned dim_crypto_id", table_name="crypto_id_dim")
 
         return crypto_id_df, latest_snapshot
 
     def __prepare_dim_crypto_map_df(self) -> Optional[Tuple[DataFrame, str]]:
         """
-        Prepares the dim_crypto_map table from the same snapshot used for dim_crypto_identity.
+        Prepares the dim_crypto_map table from the same snapshot used for dim_crypto_id.
 
         Requires:
         - `self.last_map_snapshot` to be already initialized by __prepare_dim_crypto_id_df()
@@ -397,7 +405,7 @@ class CryptoTransformer(BaseTransformer):
 
         if self.last_map_snapshot is None:
             self.log(
-                "[ERROR] self.last_map_snapshot not found — run __prepare_dim_crypto_identity_df first.",
+                "[ERROR] self.last_map_snapshot not found — run __prepare_dim_crypto_id_df first.",
                 table_name="crypto_map_dim",
             )
             return None
@@ -541,7 +549,7 @@ class CryptoTransformer(BaseTransformer):
         Returns:
             Optional[Tuple[DataFrame, str]]: Enriched DataFrame and the associated batch identifier (file path).
         """
-        self.log(" > Starting transformation: fact_crypto_market", table_name="crypto_market_fact")
+        self.log(" > Starting transformation: fact_crypto_market", table_name="fact_crypto_market")
 
         # Define the expected schema for raw crypto market data
         schema = StructType([
@@ -599,8 +607,8 @@ class CryptoTransformer(BaseTransformer):
         try:
             # Load the first snapshot file to initialize the DataFrame
             self.log(
-                f"[BATCH INIT] Reading first snapshot of crypto_market_fact batch — total files: {len(last_batch)}",
-                table_name="crypto_market_fact",
+                f"[BATCH INIT] Reading first snapshot of fact_crypto_market batch — total files: {len(last_batch)}",
+                table_name="fact_crypto_market",
             )
             df_combined = self.spark.read.schema(schema).parquet(str(last_batch[0]))
 
@@ -608,13 +616,13 @@ class CryptoTransformer(BaseTransformer):
             for i, snapshot_path in enumerate(last_batch[1:]):
                 self.log(
                     f"[{i+2}/{len(last_batch)}] Merging snapshot file: {snapshot_path} - Remaining: {len(last_batch) -i -2}",
-                    table_name="crypto_market_fact",
+                    table_name="fact_crypto_market",
                 )
                 df_next = self.spark.read.schema(schema).parquet(str(snapshot_path))
                 df_combined = df_combined.unionByName(df_next, allowMissingColumns=True)
 
         except Exception as e:
-            self.log(f"[ERROR] Failed to read or merge snapshot parquet files -> {e}", table_name="crypto_market_fact")
+            self.log(f"[ERROR] Failed to read or merge snapshot parquet files -> {e}", table_name="fact_crypto_market")
             return None
 
         try:
@@ -634,7 +642,7 @@ class CryptoTransformer(BaseTransformer):
                 .select(*selected_columns)
             )
 
-            self.log("Data cleaning and column normalization done.", table_name="crypto_market_fact")
+            self.log("Data cleaning and column normalization done.", table_name="fact_crypto_market")
 
             # Add derived KPIs
             df_enriched = (
@@ -675,11 +683,11 @@ class CryptoTransformer(BaseTransformer):
                 )
             )
 
-            self.log_dataframe_info(df_enriched, "Cleaned & enriched fact_crypto_market_df", table_name="crypto_market_fact")
+            self.log_dataframe_info(df_enriched, "Cleaned & enriched fact_crypto_market_df", table_name="fact_crypto_market")
             return df_enriched, last_batch[0]
 
         except Exception as e:
-            self.log(f"[ERROR] Failed during DataFrame cleaning or KPI enrichment -> {e}", table_name="crypto_market_fact")
+            self.log(f"[ERROR] Failed during DataFrame cleaning or KPI enrichment -> {e}", table_name="fact_crypto_market")
             return None, None
 
     def __prepare_dim_crypto_categories_df(self, last_snapshot: str) -> Optional[Tuple[DataFrame, str]]:
@@ -698,7 +706,7 @@ class CryptoTransformer(BaseTransformer):
         Returns:
             Tuple[DataFrame, str]: Cleaned dimension DataFrame and the snapshot path, or None if loading fails.
         """
-        self.log(" > Starting transformation: crypto_categories_dim", table_name="crypto_categories_dim")
+        self.log(" > Starting transformation: dim_crypto_category", table_name="dim_crypto_category")
 
         # Store the latest snapshot path for reuse by dependent methods (fact_crypto_category)
         self.last_categories_snapshot = last_snapshot
@@ -719,20 +727,20 @@ class CryptoTransformer(BaseTransformer):
                                 StructField("date_snapshot", StringType(), True),  
                             ])
 
-        self.log(f"Reading latest crypto_categories_dim snapshot: {last_snapshot.name}", table_name="crypto_categories_dim")
+        self.log(f"Reading latest dim_crypto_category snapshot: {last_snapshot.name}", table_name="dim_crypto_category")
 
         # Read with schema
         try:
             df_raw = self.spark.read.schema(categories_schema).parquet(str(last_snapshot))
 
         except Exception as e:
-            self.log(f"[ERROR] Failed to read Parquet file at {last_snapshot} -> {e}", table_name="crypto_categories_dim")
+            self.log(f"[ERROR] Failed to read Parquet file at {last_snapshot} -> {e}", table_name="dim_crypto_category")
             return None
 
         # --- Build dim_crypto_category table ---
         dim_columns = ["category_id", "name", "title", "description"]
         dim_df = df_raw.select(*dim_columns).dropna(subset=["category_id"]).dropDuplicates(subset=["category_id"])
-        self.log_dataframe_info(dim_df, "Cleaned dim_crypto_categories", table_name="crypto_categories_dim")
+        self.log_dataframe_info(dim_df, "Cleaned dim_crypto_categories", table_name="dim_crypto_category")
 
         # --- Broadcast the metrics columns in destination to the fact table ---
         fact_columns = [
@@ -760,7 +768,7 @@ class CryptoTransformer(BaseTransformer):
 
         self.broadcasted_crypto_categories_metrics = broadcast(category_metrics_df)
         self.log_dataframe_info(
-            category_metrics_df, "Cleaned broadcasted_crypto_categories_metrics", table_name="crypto_categories_dim"
+            category_metrics_df, "Cleaned broadcasted_crypto_categories_metrics", table_name="dim_crypto_category"
         )
 
         return dim_df, last_snapshot
@@ -896,7 +904,7 @@ class CryptoTransformer(BaseTransformer):
             )
         else:
             self.log(
-                "[ERROR] broadcasted_crypto_categories_metrics is not available. Please run build_crypto_categories_dim() first.",
+                "[ERROR] broadcasted_crypto_categories_metrics is not available. Please run build_dim_crypto_category() first.",
                 table_name="crypto_categories_fact",
             )
             return None, None
