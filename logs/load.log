@@ -1,4 +1,3 @@
-
 "Load execution trace for table: fact_global_market"
 "This section logs the full execution context:"
   " - Start and end markers for visibility"
@@ -213,6 +212,214 @@
 ==================================================
         Exchange Loader - End Full Doamin Load        
 ==================================================
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+" This test simulates a full domain load for the crypto domain."
+" Execution order follows dependency-safe strategy:"
+ " 1. Start with dim_crypto_id as the root dimension."
+ " 2. Continue with dimensions and facts that reference it."
+ " 3.Enforce referential integrity and deduplication at every step."
+==================================================
+      Crypto Loader - Start Full Domain Load      
+==================================================
+
+"dim_crypto_id -> Root dimension table"
+ " No FK, deduplication via primary key (crypto_id)"
+ " 6 new unique entries detected and loaded"
+ " Load metadata saved and transformation version tracked"
+==================================================
+        Loading Started for dim_crypto_id         
+==================================================
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/load/crypto/dim_crypto_id.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/dim_crypto_id.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_id] New transformation detected. Proceeding to load. 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_id] Reading Delta table from: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/crypto/dim_crypto_id 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_id] Successfully read Delta table dim_crypto_id 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_id] Row count: 5000 | Schema: struct<crypto_id:int,name:string,symbol:string,platform_id:int,platform_name:string,platform_symbol:string,platform_token_address:string> 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_id] Reading existing records from DW for deduplication... 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_id] Filtering new rows using left anti join on primary key... 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_id] Filtered 6 new rows to load 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_id] 6 new rows successfully written to dim_crypto_id 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/dim_crypto_id.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_id] Saving load metadata for dim_crypto_id 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/load/crypto/dim_crypto_id.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_id] Loaded operation for dim_crypto_id succeeded 
+
+==================================================
+         Loading Ended for dim_crypto_id          
+==================================================
+
+" dim_crypto_info -> Stable dimension depending on dim_crypto_id"
+ " 1. Deduplication on crypto_id"
+ " 2. FK validated on crypto_id: 0 invalid rows"
+ " 3. 4937 new rows written after filtering"
+"Demonstrates correct chaining between dependent dims"
+==================================================
+       Loading Started for dim_crypto_info        
+==================================================
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/load/crypto/dim_crypto_info.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/dim_crypto_info.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_info] New transformation detected. Proceeding to load. 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_info] Reading Delta table from: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/crypto/dim_crypto_info 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_info] Successfully read Delta table dim_crypto_info 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_info] Row count: 5000 | Schema: struct<crypto_id:int,slug:string,snapshot_timestamp:timestamp,snapshot_date:date,date_launched:date,date_added:date,category:string,tags:array<string>,description:string,logo_url:string,website_url:string,technical_doc_url:string,explorer_url:string,source_code_url:string,twitter_url:string> 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_info] Reading existing records from DW for deduplication... 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_info] Filtering new rows using left anti join on primary key... 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_info] Filtered 4937 new rows to load 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_info] Validating foreign key 'crypto_id' against 'dim_crypto_id' 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_info] Filtered 0 invalid rows for FK 'crypto_id' (remaining: 4937) 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_info] 4937 new rows successfully written to dim_crypto_info 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/dim_crypto_info.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_info] Saving load metadata for dim_crypto_info 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/load/crypto/dim_crypto_info.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_info] Loaded operation for dim_crypto_info succeeded 
+
+==================================================
+        Loading Ended for dim_crypto_info         
+==================================================
+
+"dim_crypto_category -> Reference dimension"
+" Deduplication on category_id "
+" No new data to load (0 rows detected)"
+" Smart skip with metadata update  ---------->  Go to metadata/load/crypto/dim_crypto_category for better understanding."
+==================================================
+     Loading Started for dim_crypto_category      
+==================================================
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/load/crypto/dim_crypto_category.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/dim_crypto_category.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_category] New transformation detected. Proceeding to load. 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_category] Reading Delta table from: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/crypto/dim_crypto_category 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_category] Successfully read Delta table dim_crypto_category 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_category] Row count: 281 | Schema: struct<category_id:string,name:string,title:string,description:string> 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_category] Reading existing records from DW for deduplication... 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_category] Filtering new rows using left anti join on primary key... 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_category] Filtered 0 new rows to load 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_category] No new records found for dim_crypto_category. Skipping write. 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/load/crypto/dim_crypto_category.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_category] Loaded operation for dim_crypto_category succeeded 
+
+==================================================
+      Loading Ended for dim_crypto_category       
+==================================================
+
+" crypto_category_link -> Link table (many-to-many)"
+
+"Deduplication on (crypto_id, category_id)"
+"FK validated on category_id"
+"FK validated on crypto_id -> all rows invalid (0 loaded)"
+
+"FK enforcement logic functioning correctly"
+==================================================
+     Loading Started for crypto_category_link     
+==================================================
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/load/crypto/crypto_category_link.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/crypto_category_link.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [crypto_category_link] New transformation detected. Proceeding to load. 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [crypto_category_link] Reading Delta table from: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/crypto/crypto_category_link 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [crypto_category_link] Successfully read Delta table crypto_category_link 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [crypto_category_link] Row count: 7 | Schema: struct<crypto_id:int,category_id:string> 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [crypto_category_link] Reading existing records from DW for deduplication... 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [crypto_category_link] Filtering new rows using left anti join on primary key... 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [crypto_category_link] Filtered 7 new rows to load 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [crypto_category_link] Validating foreign key 'category_id' against 'dim_crypto_category' 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [crypto_category_link] Filtered 0 invalid rows for FK 'category_id' (remaining: 7) 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [crypto_category_link] Validating foreign key 'crypto_id' against 'dim_crypto_id' 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [crypto_category_link] Filtered 7 invalid rows for FK 'crypto_id' (remaining: 0) 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [crypto_category_link] 0 new rows successfully written to crypto_category_link 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/crypto_category_link.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [crypto_category_link] Saving load metadata for crypto_category_link 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/load/crypto/crypto_category_link.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [crypto_category_link] Loaded operation for crypto_category_link succeeded 
+
+==================================================
+      Loading Ended for crypto_category_link      
+==================================================
+
+"dim_crypto_map -> Variant dimension"
+
+" No deduplication (append strategy)"
+" FK validated on crypto_id: 0 invalid"
+" All 5000 rows loaded"
+==================================================
+        Loading Started for dim_crypto_map        
+==================================================
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/load/crypto/dim_crypto_map.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/dim_crypto_map.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_map] New transformation detected. Proceeding to load. 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_map] Reading Delta table from: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/crypto/dim_crypto_map 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_map] Successfully read Delta table dim_crypto_map 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_map] Row count: 5000 | Schema: struct<crypto_id:int,snapshot_timestamp:timestamp,snapshot_str:string,rank:int,is_active:int,last_historical_data:string> 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_map] Validating foreign key 'crypto_id' against 'dim_crypto_id' 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_map] Filtered 0 invalid rows for FK 'crypto_id' (remaining: 5000) 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_map] Successfully wrote 5000 rows to dim_crypto_map 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/dim_crypto_map.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_map] Saving load metadata for dim_crypto_map 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/load/crypto/dim_crypto_map.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [dim_crypto_map] Loaded operation for dim_crypto_map succeeded 
+
+==================================================
+         Loading Ended for dim_crypto_map         
+==================================================
+
+"fact_crypto_market -> Main fact table"
+
+ "1. FK validated on crypto_id"
+ "2. 2154 invalid rows filtered out"
+ "3. 2730 rows written"
+
+"Demonstrates FK robustness and performance at scale"
+==================================================
+      Loading Started for fact_crypto_market      
+==================================================
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/load/crypto/fact_crypto_market.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/fact_crypto_market.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [fact_crypto_market] New transformation detected. Proceeding to load. 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [fact_crypto_market] Reading Delta table from: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/crypto/fact_crypto_market 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [fact_crypto_market] Successfully read Delta table fact_crypto_market 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [fact_crypto_market] Row count: 4884 | Schema: struct<crypto_id:int,snapshot_timestamp:timestamp,snapshot_str:string,batch_index:int,cmc_rank:int,last_updated_usd:string,platform_id:int,circulating_supply:double,total_supply:double,max_supply:double,infinite_supply:boolean,self_reported_circulating_supply:double,price_usd:double,volume_24h_usd:double,volume_change_24h:double,percent_change_1h_usd:double,percent_change_24h_usd:double,percent_change_7d_usd:double,market_cap_usd:double,self_reported_market_cap:double,market_cap_dominance_usd:double,fully_diluted_market_cap_usd:double,num_market_pairs:int,volume_to_market_cap_ratio:double,missing_supply_ratio:double,supply_utilization:double,fully_diluted_cap_ratio:double> 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [fact_crypto_market] Validating foreign key 'crypto_id' against 'dim_crypto_id' 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [fact_crypto_market] Filtered 2154 invalid rows for FK 'crypto_id' (remaining: 2730) 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [fact_crypto_market] Successfully wrote 2730 rows to fact_crypto_market 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/fact_crypto_market.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [fact_crypto_market] Saving load metadata for fact_crypto_market 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/load/crypto/fact_crypto_market.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [fact_crypto_market] Loaded operation for fact_crypto_market succeeded 
+
+==================================================
+       Loading Ended for fact_crypto_market       
+==================================================
+
+"Category-level fact table"
+"FK validated on category_id: all rows valid"
+"281 rows written without issues"
+==================================================
+     Loading Started for fact_crypto_category     
+==================================================
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/load/crypto/fact_crypto_category.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/fact_crypto_category.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [fact_crypto_category] New transformation detected. Proceeding to load. 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [fact_crypto_category] Reading Delta table from: /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/data/silver/crypto/fact_crypto_category 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [fact_crypto_category] Successfully read Delta table fact_crypto_category 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [fact_crypto_category] Row count: 281 | Schema: struct<category_id:string,snapshot_timestamp:timestamp,snapshot_str:string,num_tokens:int,avg_price_change:double,market_cap:double,market_cap_change:double,volume:double,volume_change:double,last_updated:string,volume_to_market_cap_ratio:double,dominance_per_token:double,market_cap_change_rate:double,volume_change_rate:double,price_change_index:double> 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [fact_crypto_category] Validating foreign key 'category_id' against 'dim_crypto_category' 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [fact_crypto_category] Filtered 0 invalid rows for FK 'category_id' (remaining: 281) 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [fact_crypto_category] Successfully wrote 281 rows to fact_crypto_category 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Last snapshot loaded from /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/transform/crypto/fact_crypto_category.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [fact_crypto_category] Saving load metadata for fact_crypto_category 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] Metadata saved to /home/hm/Desktop/Data_engineer/Projects/Crypto_OLAP_ETL_Project/crypto_etl_project/metadata/load/crypto/fact_crypto_category.jsonl 
+[2025-05-26 19:30:29] [LOAD] [CRYPTOLOADER] [fact_crypto_category] Loaded operation for fact_crypto_category succeeded 
+
+==================================================
+      Loading Ended for fact_crypto_category      
+==================================================
+
+==================================================
+       Crypto Loader - End Full Doamin Load       
+==================================================
+
+" conclusion : The loader handled all dependencies, FK validation, deduplication, and metadata tracking with precision."
+"  			   All edge cases (FK errors, up-to-date dims, variant dims) were correctly processed."
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
