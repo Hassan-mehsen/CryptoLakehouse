@@ -1,0 +1,1 @@
+{"table": "dim_exchange_id", "domain": "exchange", "status": "loaded", "record_count": 816, "mode": "append", "started_at": "2025-05-24T22:43:05.693008+00:00", "ended_at": "2025-05-24T22:43:05.693008+00:00", "transformation_ended_at": "2025-05-15T22:01:35.963386+00:00", "notes": "Load from transformed dim_exchange_id delta table"}
