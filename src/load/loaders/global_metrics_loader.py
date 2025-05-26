@@ -33,13 +33,14 @@ class GlobalMetricsLoader(BaseLoader):
 
         if not self.should_load(table):
             self.log_section(title=f"Loading Skipped for {table}")
-            return 
+            return
 
         status = self._load_fact_or_variant_table(
-            table_name=table, 
-            version=version, 
-            mode="append", 
-            notes="Load from transformed global metrics delta table"
+            table_name=table,
+            fk_presence=False,
+            version=version,
+            mode="append",
+            notes="Load from transformed global metrics delta table",
         )
 
         if status:

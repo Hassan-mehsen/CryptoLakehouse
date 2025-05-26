@@ -41,7 +41,11 @@ class FearAndGreedLoader(BaseLoader):
             return
 
         status = self._load_fact_or_variant_table(
-            table_name=table, version=version, mode="append", notes="Load from transformed fear and greed delta table"
+            table_name=table,
+            fk_presence=False,
+            version=version,
+            mode="append",
+            notes="Load from transformed fear and greed delta table",
         )
 
         if status:
