@@ -1,6 +1,6 @@
-from pyspark.sql import SparkSession, DataFrame
+from pyspark.sql import SparkSession, DataFrame, functions as f
+from typing import Optional, List, Tuple
 from datetime import datetime, timezone
-from typing import Optional, List
 from dotenv import load_dotenv
 from pathlib import Path
 import json
@@ -278,7 +278,7 @@ class BaseLoader:
         Retrieves the most recent transformation metadata record for the specified table.
 
         This method reads the latest JSON line from the corresponding file in:
-        metadata/transform/`domain`/`table_name`.jsonl 
+        metadata/transform/`domain`/`table_name`.jsonl
 
         The metadata typically includes transformation timestamps, version, status,
         and data lineage information used to determine whether a new load should be triggered.
@@ -348,9 +348,8 @@ class BaseLoader:
         """
         try:
             df.write.jdbc(url=self.jdbc_url, table=table_name, mode=mode, properties=self.jdbc_properties)
-            self.log(f"Successfully wrote {df.count()} rows to {table_name}", table_name=table_name)
             return True
-        
+
         except Exception as e:
             self.log(f"[ERROR] Failed to write to data warehouse: {e}", table_name=table_name)
             return False
@@ -376,7 +375,7 @@ class BaseLoader:
         Returns:
             bool: True if loading should proceed, False otherwise.
         """
-        if force :
+        if force:
             return True
 
         load_metadata = self.read_last_metadata(table_name=table_name)
@@ -401,64 +400,239 @@ class BaseLoader:
         else:
             self.log("No new transformation since last load. Skipping.", table_name=table_name)
             return False
-
-    def _load_fact_or_variant_table(
-        self, table_name: str, version: Optional[int] = None, mode: str = "append", notes: str = "",
-    ) -> bool:
+        
+    def secure_fk_load(self, df: DataFrame, fks_ref_table: dict, table_name: str) -> Optional[Tuple[DataFrame, int]]:
         """
-        Executes a standardized loading workflow for fact tables or variant dimensions.
+        Filters a DataFrame to keep only rows that have valid foreign key references
+        in the target data warehouse tables.
 
-        This method performs the following steps:
-        - Reads the specified Delta table (with optional versioning)
-        - Logs schema and row count
-        - Writes the data into the data warehouse using the specified mode
-        - Updates and saves load metadata, including linkage to the last transformation step
-
-        The method also logs all key steps and errors for traceability.
+        This method performs one left semi join per FK/table combination to ensure
+        referential integrity before loading into the DW.
 
         Args:
-            table_name (str): Name of the table to load into the data warehouse.
-            version (Optional[int]): Delta version to load. If None, uses latest version.
-            mode (str): Write mode. Typically "append" or "overwrite".
-            notes (str): Optional note to include in metadata.
+            df (DataFrame): The input DataFrame to filter.
+            fks_ref_table (dict): Mapping of fk_column -> referenced_table
+                                Example: {"crypto_id": "dim_crypto_id"}
+            table_name (str): Name of the target table for logging context.
 
         Returns:
-            bool: True if loading and metadata recording were successful, False otherwise.
+            Optional[Tuple[DataFrame, int]]: 
+                A tuple containing:
+                - The filtered DataFrame with only valid FK rows.
+                - The final row count after all FK validations.
+                Returns None if an error occurs.
         """
-        self.load_metadata.update(
-            {
-                "started_at": self.timestamp,
-            }
-        )
+        for fk_column, ref_table in fks_ref_table.items():
+            self.log(f"Validating foreign key '{fk_column}' against '{ref_table}'", table_name=table_name)
+
+            ref_df = self.read_from_dw(table_name=ref_table, columns=[fk_column])
+            if ref_df is None:
+                self.log(f"[ERROR] Could not read reference table '{ref_table}'", table_name=table_name)
+                return None
+
+            before_count = df.count()
+            df = df.alias("a").join(
+                ref_df.alias("b"),
+                on=f.col(f"a.{fk_column}") == f.col(f"b.{fk_column}"),
+                how="left_semi"
+            ).select("a.*")
+            after_count = df.count()
+
+            self.log(
+                f"Filtered {before_count - after_count} invalid rows for FK '{fk_column}' (remaining: {after_count})",
+                table_name=table_name
+            )
+
+        return df, after_count
+
+    def _load_fact_or_variant_table(
+        self,
+        table_name: str,
+        fk_presence: bool,
+        fks_ref_table: Optional[dict],
+        mode: str = "append",
+        notes: str = "",
+        version: Optional[int] = None,
+    ) -> bool:
+        """
+        Loads a fact or variant dimension table into the data warehouse.
+
+        This method is designed for tables that do not require deduplication (e.g., facts and variant dimensions),
+        but may optionally require referential integrity enforcement via foreign key validation.
+
+        Steps performed:
+        1. Read the transformed Delta table (optionally from a specific version)
+        2. (Optional) Filter out rows with invalid foreign key values via semi joins
+        3. Write the resulting DataFrame to the DW using the configured mode
+        4. Log details and persist metadata for traceability
+
+        Args:
+            table_name (str): Name of the DW table to write to.
+            fk_presence (bool): Whether FK constraints must be validated before load.
+            fks_ref_table (dict): Mapping of {fk_column: referenced_table}.
+            mode (str): Write mode for Spark (default: "append").
+            notes (str): Additional comment to include in load metadata.
+            version (Optional[int]): Delta version to read (default: latest).
+
+        Returns:
+            bool: True if the load was successful and metadata persisted, False otherwise.
+        """
+        # Step 1: Read transformed Delta data
+        self.load_metadata.update({"started_at": self.timestamp})
 
         df = self.read_delta(table_name, version=version)
         if df is None:
-            self.log(f"[ERROR] No DataFrame returned from delta for {table_name}", table_name=table_name)
-            self.load_metadata.update(
-                {
-                    "table": table_name,
-                    "status": "failed",
-                    "record_count": 0,
-                }
-            )
+            self.log(f"[ERROR] No DataFrame returned from Delta for {table_name}", table_name=table_name)
+            self.load_metadata.update({
+                "table": table_name,
+                "status": "failed",
+                "record_count": 0,
+            })
             self.save_metadata(table_name, self.load_metadata)
             return False
 
-        self.log(f"LOADING {table_name.upper()}")
+        self.log(f"Successfully read Delta table {table_name}", table_name=table_name)
         self.log_dataframe_info(df, table_name=table_name)
+
+        # Step 2: Optional FK validation
+        if fk_presence:
+            df, filtered_count = self.secure_fk_load(df=df, fks_ref_table=fks_ref_table, table_name=table_name)
+            if df is None:
+                self.log(f"[ERROR] FK validation failed. Aborting load for {table_name}", table_name=table_name)
+                return False
+
+        # Step 3: Write to DW
         status = self.write_to_dw(df, table_name=table_name, mode=mode)
+        if not status:
+            self.log(f"[ERROR] Failed to write to DW for {table_name}", table_name=table_name)
+            return False
 
+        self.log(f"Successfully wrote {filtered_count} rows to {table_name}", table_name=table_name)
+
+        # Step 4: Persist load metadata
         transform_meta = self.read_last_transformation_metadata(table_name)
-        self.load_metadata.update(
-            {
-                "table": table_name,
-                "status": "loaded" if status is True else "failed",
-                "record_count": df.count(),
-                "mode": mode,
-                "ended_at": self.timestamp,
-                "transformation_ended_at": transform_meta.get("ended_at") if transform_meta else "",
-                "notes": notes,
-            }
-        )
+        self.load_metadata.update({
+            "table": table_name,
+            "status": "loaded",
+            "record_count": df.count(),
+            "mode": mode,
+            "ended_at": self.timestamp,
+            "transformation_ended_at": transform_meta.get("ended_at") if transform_meta else "",
+            "notes": notes,
+        })
+        self.log(f"Saving load metadata for {table_name}", table_name=table_name)
 
-        return status and self.save_metadata(table_name, self.load_metadata)
+        return self.save_metadata(table_name, self.load_metadata)
+
+    def _load_stable_dim_table(
+        self,
+        table_name: str,
+        fk_presence: bool,
+        pk_columns: List[str],
+        version: Optional[int] = None,
+        fks_ref_table: Optional[dict] = None,
+        mode: str = "append",
+        notes: str = "",
+    ) -> bool:
+        """
+        Loads a stable dimension table into the data warehouse by inserting only new records
+        (based on composite or single-column primary keys), with optional foreign key validation.
+
+        This method is intended for slowly changing dimension tables that require deduplication
+        before load. It also ensures referential integrity if foreign key validation is enabled.
+
+        Steps performed:
+        1. Read the transformed Delta table (optionally by version)
+        2. Read existing PK values from the DW table
+        3. Filter out duplicates using left anti join on PKs
+        4. Optionally validate FKs before insertion (left semi join)
+        5. Append the cleaned DataFrame to the DW
+        6. Persist load metadata for auditability
+
+        Args:
+            table_name (str): Name of the dimension table in the DW.
+            fk_presence (bool): Whether FK validation is required before load.
+            fks_ref_table (dict): Mapping of {fk_column: referenced_table}.
+            pk_columns (List[str]): List of PK column names for deduplication.
+            version (Optional[int]): Delta version to load. Defaults to latest.
+            mode (str): Spark write mode. Default is "append".
+            notes (str): Optional free-text note saved in metadata.
+
+        Returns:
+            bool: True if data was successfully written and metadata saved, False otherwise.
+        """
+        self.load_metadata.update({"started_at": self.timestamp})
+
+        # Step 1: Read transformed Delta table
+        df = self.read_delta(table_name, version=version)
+        if df is None:
+            self.log(f"[ERROR] No DataFrame returned from Delta for {table_name}", table_name=table_name)
+            self.load_metadata.update({
+                "table": table_name,
+                "status": "failed",
+                "record_count": 0,
+            })
+            self.save_metadata(table_name, self.load_metadata)
+            return False
+
+        self.log(f"Successfully read Delta table {table_name}", table_name=table_name)
+        self.log_dataframe_info(df, table_name=table_name)
+
+        # Step 2: Read existing primary keys from DW
+        self.log("Reading existing records from DW for deduplication...", table_name=table_name)
+        df_dw = self.read_from_dw(table_name=table_name, columns=pk_columns)
+        if df_dw is None:
+            self.log(f"[ERROR] Failed to read DW records for deduplication", table_name=table_name)
+            return False
+
+        # Step 3: Deduplication using left anti join
+        self.log("Filtering new rows using left anti join on primary key...", table_name=table_name)
+        df_filtered = df.alias("a").join(
+            df_dw.alias("b"),
+            on=[f.col(f"a.{col}") == f.col(f"b.{col}") for col in pk_columns],
+            how="left_anti"
+        ).select("a.*")
+        filtered_count = df_filtered.count()
+        self.log(f"Filtered {filtered_count} new rows to load", table_name=table_name)
+
+        if filtered_count == 0:
+            self.log(f"No new records found for {table_name}. Skipping write.", table_name=table_name)
+            self.load_metadata.update({
+                "table": table_name,
+                "status": "skipped",
+                "record_count": 0,
+                "notes": "Data is up to date"
+            })
+            return self.save_metadata(table_name, self.load_metadata)
+
+        # Step 4 (optional): Enforce FK constraints if needed
+        if fk_presence:
+            df_filtered, filtered_count = self.secure_fk_load(df=df_filtered, fks_ref_table=fks_ref_table, table_name=table_name)
+            if df_filtered is None:
+                self.log(f"[ERROR] Foreign key validation failed. Aborting load for {table_name}", table_name=table_name)
+                return False
+
+        # Step 5: Append to DW
+        status = self.write_to_dw(df_filtered, table_name=table_name, mode=mode)
+        if not status:
+            self.log(f"[ERROR] Failed to write filtered data to DW for {table_name}", table_name=table_name)
+            return False
+        self.log(f"{filtered_count} new rows successfully written to {table_name}", table_name=table_name)
+
+        # Step 6: Save metadata
+        transform_meta = self.read_last_transformation_metadata(table_name)
+        self.load_metadata.update({
+            "table": table_name,
+            "status": "loaded",
+            "record_count": filtered_count,
+            "mode": mode,
+            "ended_at": self.timestamp,
+            "transformation_ended_at": transform_meta.get("ended_at") if transform_meta else "",
+            "notes": notes,
+        })
+        self.log(f"Saving load metadata for {table_name}", table_name=table_name)
+
+        return self.save_metadata(table_name, self.load_metadata)
+
+        
+        
