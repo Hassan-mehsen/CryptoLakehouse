@@ -95,7 +95,7 @@ dim_crypto_map = Table(
 dim_crypto_info = Table(
     "dim_crypto_info", metadata,
     Column("crypto_id", Integer, ForeignKey("dim_crypto_id.crypto_id"), primary_key=True),  # /cryptocurrency/info -> id
-    Column("slug", String(50)),                                   # /cryptocurrency/info -> slug
+    Column("slug", String(255)),                                   # /cryptocurrency/info -> slug
     Column("snapshot_timestamp", DateTime),                       # from date_snapshot -> to_timestamp
     Column("snapshot_date", Date),                                # Spark formatted date (String)
     Column("date_launched", Date),                                # /cryptocurrency/info -> date_launched
