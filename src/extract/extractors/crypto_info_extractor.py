@@ -1,6 +1,6 @@
 from extract.base_extractor import BaseExtractor
+from datetime import date, timedelta, datetime
 from typing import Optional, List, Generator
-from datetime import date, timedelta
 from pandas import DataFrame
 import json
 import time
@@ -78,18 +78,22 @@ class CryptoInfoExtractor(BaseExtractor):
         # Load crypto_info snapshot if available;
         # if not found or empty, treat as initialization (full crypto_info extraction).
         # if today is the date of the full scan refetch all crypto info to be uptodate
-        today_str = date.today().isoformat()
+        today_str = date.today()
         crypto_info_snapshot = self.read_last_snapshot()
+
+        last_scan_str = crypto_info_snapshot.get("date_of_next_full_scan")
+        last_scan_date = datetime.strptime(last_scan_str, "%Y-%m-%d").date() if last_scan_str else None
+
         if (
             crypto_info_snapshot
             and crypto_info_snapshot.get("ids_available_info", [])
-            and today_str != crypto_info_snapshot.get("date_of_next_full_scan")
+            and today_str != last_scan_date
         ):
             available_crypto_ids = set(crypto_info_snapshot.get("ids_available_info", []))
             self.snapshot_info["date_of_next_full_scan"] = crypto_info_snapshot.get("date_of_next_full_scan")
-        else:
+        elif not crypto_info_snapshot or today_str >= last_scan_date :
             available_crypto_ids = set()
-            crypto_info_snapshot["date_of_next_full_scan"] = (date.today() + timedelta(days=30)).isoformat()
+            self.snapshot_info["date_of_next_full_scan"] = (date.today() + timedelta(days=30)).isoformat()
 
         # Compute missing IDs
         ids_to_fetch = crypto_ids - available_crypto_ids
