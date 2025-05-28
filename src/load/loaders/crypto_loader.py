@@ -134,16 +134,25 @@ class CryptoLoader(BaseLoader):
         Deduplication is applied on the composite key (category_id, crypto_id).
         Foreign key constraints are validated against both dimension tables to ensure data consistency.
 
+        Additionally, all distinct category_ids currently in dim_crypto_category are collected
+        and stored in the load metadata for downstream usage (e.g., forecasting, filtering, etc.).
+
         Args:
             version (int, optional): Delta version to load. Defaults to latest.
         """
-
         table = "crypto_category_link"
         self.log_section(title=f"Loading Started for {table}")
 
         if not self.should_load(table) and version is None:
             self.log_section(title=f"Loading Skipped for {table}")
             return
+
+        # Read all category IDs from dim_crypto_category table
+        df_category = self.read_from_dw("dim_crypto_category", columns=["category_id"])
+        if df_category is not None:
+            category_list = [row["category_id"] for row in df_category.select("category_id").collect()]
+            self.load_metadata.update({"categories_count": len(category_list)})
+            self.load_metadata.update({"category_ids": category_list})
 
         status = self._load_stable_dim_table(
             table_name=table,

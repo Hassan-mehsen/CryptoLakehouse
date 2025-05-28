@@ -30,60 +30,88 @@ class CryptoCategoryExtractor(BaseExtractor):
     def __init__(self):
         super().__init__(name="crypto_category", endpoint="/v1/cryptocurrency/category", output_dir="crypto_category_data")
 
+        self.status = ""
         self.MAX_RETRIES = 3
         self.params = {"id": None, "start": "1", "limit": "1000"}
         self.snapshot_info = {
             "source_endpoint": self.endpoint,
-            "crypto_categories_snapshot_ref": None,
-            "total_category_fetched": None,
-            "category_ids": [],
+            "extract_snapshot_ref": "",
+            "load_snapshot_ref": "",
+            "num_available_categories": "",
+            "num_loaded_categories": "",
+            "category_ids_to_fetch": "",
+            "num_categories_to_fetch": "",
         }
-
+    
     def find_category_ids_to_fetch(self) -> List[str]:
         """
-        Identifies which category IDs still need to be fetched based on snapshot comparisons.
+        Determines which category IDs need to be fetched from the /category endpoint.
 
-        - If no snapshot from `/category` exists (first run), all active category IDs from
-        the `/categories` snapshot are returned (full initialization).
-        - If a snapshot exists, only the category IDs missing from it are returned (refresh mode).
+        Logic:
+        - Step 1: Load the last list of active category IDs from the latest /categories snapshot
+        (stored in `metadata/extract/crypto_categories/snapshot_info.jsonl`).
+        - Step 2: Load the last list of category IDs already extracted and linked to cryptos
+        (from `metadata/load/crypto/crypto_category_link.jsonl`).
+        - Step 3: Compare the two snapshots to find the missing IDs.
+            - If no snapshot is found (first run), all categories will be fetched.
+            - If snapshots are found, only the delta is processed.
 
         Returns:
-            List[str]: List of category IDs to be fetched from the `/category` endpoint.
+            List[str]: Sorted list of category IDs to be fetched from the /category endpoint.
         """
 
-        crypto_categories_path = self.PROJECT_ROOT / "metadata/extract/crypto_categories/snapshot_info.jsonl"
+        extract_snapshot_path = self.PROJECT_ROOT / "metadata/extract/crypto_categories/snapshot_info.jsonl"
+        load_snapshot_path = self.PROJECT_ROOT / "metadata/load/crypto/crypto_category_link.jsonl"
 
-        # Load last crypto categories snapshot
+        category_ids_from_extract = set()
+        category_ids_already_fetched = set()
+
+        # Step 1: Load extract snapshot (list of all categories)
         try:
-            with open(crypto_categories_path, "r", encoding="utf-8") as f:
-                lines = f.readlines()
-                for line in reversed(lines):
+            with open(extract_snapshot_path, "r", encoding="utf-8") as f:
+                for line in reversed(f.readlines()):
                     if line.strip():
-                        crypto_categories_snapshot = json.loads(line.strip())
-                        available_category_ids = set(crypto_categories_snapshot.get("category_ids", []))
-                        self.snapshot_info["crypto_categories_snapshot_ref"] = crypto_categories_snapshot.get("snapshot_date")
+                        extract_snapshot = json.loads(line.strip())
+                        category_ids_from_extract = set(extract_snapshot.get("category_ids", []))
+                        self.snapshot_info["extract_snapshot_ref"] = extract_snapshot.get("snapshot_date")
+                        self.snapshot_info["num_available_categories"] = len(category_ids_from_extract)
                         break
         except Exception as e:
-            self.log(f"Error reading crypto_categories snapshot: {e}")
-            return []
+            self.log(f"[WARNING] Could not load extract snapshot: {e}")
 
-        # Load last snapshot from /category (already fetched category IDs)
-        # if not found or empty, treat as initialization (fetch all crypto categories).
-        crypto_info_snapshot = self.read_last_snapshot()
-        if crypto_info_snapshot and crypto_info_snapshot.get("category_ids", []):
-            crypto_category_ids = set(crypto_info_snapshot.get("category_ids", []))
-        else:
-            crypto_category_ids = set()
+        if not self.read_last_snapshot():
+            # First run no metadata in metadata/extract/crypto_category/ : fetch everything
+            self.log(f"No previous load snapshot found — full initialization mode.")
+            ids_to_fetch = category_ids_from_extract
+        
+        else : 
+            # Step 2: Load load snapshot (categories already fetched)
+            try:
+                with open(load_snapshot_path, "r", encoding="utf-8") as f:
+                    for line in reversed(f.readlines()):
+                        if line.strip():
+                            load_snapshot = json.loads(line.strip())
+                            category_ids_already_fetched = set(load_snapshot.get("category_ids", []))
+                            self.snapshot_info["load_snapshot_ref"] = load_snapshot.get("started_at")
+                            self.snapshot_info["num_loaded_categories"] = len(category_ids_already_fetched)
+                            break
+            except Exception as e:
+                self.log(f"[WARNING] Could not load load snapshot: {e}")
 
-        # Compute the missing ones
-        ids_to_fetch = available_category_ids - crypto_category_ids
-        self.log(
-            f"{len(available_category_ids)} categories available from snapshot, "
-            f"{len(crypto_category_ids)} categories already fetched. "
-            f"{len(ids_to_fetch)} remaining to fetch."
-        )
-        self.snapshot_info["category_ids"] = sorted(list(crypto_category_ids.union(ids_to_fetch)))
-        self.snapshot_info["total_category_fetched"] = len(ids_to_fetch)
+            # Refresh mode: compute difference
+            ids_to_fetch = category_ids_from_extract - category_ids_already_fetched
+            self.log(
+                f"{len(category_ids_from_extract)} categories available in /categories snapshot, "
+                f"{len(category_ids_already_fetched)} already fetched, "
+                f"{len(ids_to_fetch)} remaining to fetch."
+            )
+            if len(ids_to_fetch) == 0 :
+                ids_to_fetch = ["skip"]
+                self.status = "skip"
+
+        # Log and trace metadata
+        self.snapshot_info["category_ids_to_fetch"] = sorted(ids_to_fetch)
+        self.snapshot_info["num_categories_to_fetch"] = len(ids_to_fetch)
 
         return list(ids_to_fetch)
 
@@ -98,7 +126,7 @@ class CryptoCategoryExtractor(BaseExtractor):
         Yields:
             Tuple[dict, int]: Tuple of raw data dictionary and index in iteration.
         """
-
+        
         for i, category_id in enumerate(category_ids, start=1):
             success = False
 
@@ -179,14 +207,22 @@ class CryptoCategoryExtractor(BaseExtractor):
 
         # Step 1: Identify category IDs to fetch
         category_ids = self.find_category_ids_to_fetch()
+
         if not category_ids:
             self.log("No category IDs to fetch. Skipping extraction.")
             self.log_section("END CryptoCategoryExtractor")
             return
+        
+        if self.status == "skip":
+            self.log("All categories are already fetched. Nothing left to process.")
+            self.write_snapshot_info(self.snapshot_info)
+            self.log_section("END CryptoCategoryExtractor")
+            return 
 
         # Step 2: Fetch and parse data for each category
         all_links = []
         for raw_data, pos in self.fetch_crypto_category(category_ids=category_ids):
+            
             parsed_category = self.parse(raw_category_data=raw_data, id_pos=pos)
             if parsed_category:
                 all_links.extend(parsed_category)
@@ -207,8 +243,7 @@ class CryptoCategoryExtractor(BaseExtractor):
         df["date_snapshot"] = self.df_snapshot_date
         self.log(f"Snapshot timestamp: {self.df_snapshot_date}")
 
-        # Step 6: Update and write snapshot metadata
-        self.snapshot_info["total_category_fetched"] = len(self.snapshot_info["category_ids"])
+        # Step 6: write snapshot metadata
         self.write_snapshot_info(self.snapshot_info)
 
         # Step 7: Save as Parquet
