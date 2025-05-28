@@ -1,4 +1,3 @@
-from pyspark import SparkConf, SparkContext
 from pyspark.sql import SparkSession
 from pathlib import Path
 import sys
@@ -13,123 +12,116 @@ from transform.transformers.exchange_transformer import ExchangeTransformer
 from transform.transformers.crypto_transformer import CryptoTransformer
 
 
-class TransformationPipelineRunner:
+class TransformationPipeline:
     """
-    Orchestrates the execution of multiple transformer components within a shared SparkContext.
-    Designed for integration with workflow schedulers like Airflow, with clearly separated methods
-    corresponding to different execution frequencies (daily, weekly, etc.).
+    Orchestrates the transformation of raw extracted data into cleaned, structured Delta tables.
+
+    This class integrates transformation logic across all business domains (Exchange, Crypto,
+    GlobalMetrics, FearAndGreed), exposing methods organized by execution frequency
+    (e.g., daily, weekly, 10x daily).
+
+    To ensure proper ordering of data dependencies and optimal broadcast of dimension tables across
+    transformers, the following execution order is strongly recommended:
+
+    1. `run_weekly_tasks()`     -> metadata and slowly changing dimensions
+    2. `run_daily_tasks()`      -> essential ID and map dimensions + link tables
+    3. `run_5x_daily_tasks()`   -> high-frequency market facts
+    4. `run_10x_daily_tasks()`  -> foundational categories and metrics
+    5. `run_init_tasks()`       -> one-time transformations
+
+    A shared SparkSession must be created externally and passed to the constructor
+    (typically via `spark-submit` or orchestrators like Airflow).
     """
 
-    def __init__(self):
+    def __init__(self, spark: SparkSession):
         """
-        Initializes a shared SparkContext and sets up dedicated SparkSessions for each transformer.
+        Initializes the pipeline with a shared SparkSession, and instantiates all transformers
+        with this session for consistency and efficient resource usage.
 
-        Each transformer (Exchange, Crypto, GlobalMetrics, FearAndGreed) receives its own SparkSession
-        with a unique application name for better traceability in the Spark UI.
-
-        This separation improves observability, debugging, and scheduling when used in orchestrators
-        like Airflow or in multi-step DAGs.
+        Args:
+            spark (SparkSession): A SparkSession created externally (typically by spark-submit).
         """
 
-        # Create a shared SparkContext for the entire pipeline
-        self.sc = SparkContext(conf=SparkConf().setAppName("CryptoETL_MasterContext"))
+        self.exchange_session = ExchangeTransformer(spark=spark)
+        self.crypto_session = CryptoTransformer(spark=spark)
+        self.global_metrics_session = GlobalMetricsTransformer(spark=spark)
+        self.fear_greed_session = FearAndGreedTransformer(spark=spark)
 
-        # Initialize each transformer with an isolated SparkSession.
-        self.exchange_session = self.create_spark_session(ExchangeTransformer, app_name="ExchangeTransformer")
-        self.crypto_session = self.create_spark_session(CryptoTransformer, app_name="CryptoTransformer")
-        self.global_metrics_session = self.create_spark_session(GlobalMetricsTransformer, app_name="GlobalMetricsTransformer")
-        self.fear_greed_session = self.create_spark_session(FearAndGreedTransformer, app_name="FearAndGreedTransformer")
-
-        # Log a header to indicate the pipeline is ready
         self.global_metrics_session.log_section(
             title="Initializing Spark application - Transformation Pipeline is ready for processing.", width=100
         )
 
-    def create_spark_session(self, transformer_class, app_name: str):
-        """
-        Instantiates a transformer object using a dedicated SparkSession.
-
-        Args:
-            transformer_class: The transformer class to instantiate (e.g. GlobalMetricsTransformer).
-            app_name (str): The name to assign to the Spark application (visible in Spark UI).
-
-        Returns:
-            An instance of the transformer class with its SparkSession initialized.
-        """
-        spark = (
-            SparkSession(self.sc)
-            .newSession()
-            .builder.appName(app_name)
-            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-            .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
-            .getOrCreate()
-        )
-
-        return transformer_class(spark)
-
     def run_all_tasks(self):
         """
-        Runs the full Transformation pipeline. Meant for manual or full-rebuild scenarios.
-        """
-        self.exchange_session.run()
-        self.crypto_session.run()
-        self.global_metrics_session.build_global_market_fact()
-        self.fear_greed_session.build_market_sentiment_history()
-        self.fear_greed_session.build_market_sentiment_fact()
+        Executes the full transformation pipeline across all domains.
 
+        Use case:
+        - Manual backfill or complete rebuild of the Data Warehouse.
+        """  
+        self.run_weekly_tasks()
+        self.run_daily_tasks()
+        self.run_5x_daily_tasks()
+        self.run_10x_daily_tasks()
+        self.run_init_tasks()
+        
     def run_daily_tasks(self):
         """
-        Runs all ETL tasks that are scheduled to run daily.
+        Runs all transformation tasks scheduled to execute daily.
+
+        Includes:
+        - Exchange dimensions and facts (frequently updated metrics)
+        - Crypto ID and category linking
         """
-        # Exchange domain
         self.exchange_session.build_exchange_id_dim()
         self.exchange_session.build_exchange_map_dim()
         self.exchange_session.build_exchange_assets_fact()
-
-        # Crypto domain
         self.crypto_session.build_crypto_id_dim()
         self.crypto_session.build_crypto_map_dim()
+        self.crypto_session.build_crypto_category_link()
 
     def run_weekly_tasks(self):
         """
-        Runs all ETL tasks that are scheduled to run weekly.
-        """
-        # Exchange domain
-        self.exchange_session.build_exchange_info_dim()
+        Runs all transformation tasks scheduled to execute weekly.
 
-        # Crypto domain
+        Includes less volatile dimensions such as:
+        - Exchange metadata
+        - Crypto project metadata
+        """
+        self.exchange_session.build_exchange_info_dim()
         self.crypto_session.build_crypto_info_dim()
 
     def run_init_tasks(self):
         """
-        Runs all ETL tasks that are only needed during the initial setup of the pipeline.
-        """
-        # Crypto domain
-        self.crypto_session.build_crypto_category_link()
+        Runs one-time initialization tasks (run only once during setup).
 
-        # Fear and Greed domain
+        Useful for:
+        - Bootstrapping historical data
+        - Populating base time series for sentiment indicators
+        """
         self.fear_greed_session.build_market_sentiment_history()
 
     def run_10x_daily_tasks(self):
         """
-        Runs tasks scheduled to execute multiple times per day (e.g., every 2-3 hours).
+        Runs tasks scheduled to execute at high frequency (e.g., every 2–3 hours).
+
+        Targets near real-time metrics such as:
+        - Crypto category evolution
+        - Global market statistics
+        - Market sentiment scores
         """
-        # Crypto domain
-        self.crypto_session.build_crypto_categories_dim()
-        self.crypto_session.build_crypto_category_fact()
-
-        # Global Metrics domain
+        self.crypto_session.build_dim_crypto_category()
+        self.crypto_session.build_fact_crypto_category()
         self.global_metrics_session.build_global_market_fact()
-
-        # Fear and Greed domain
         self.fear_greed_session.build_market_sentiment_fact()
 
     def run_5x_daily_tasks(self):
         """
-        Runs tasks scheduled approximately 5 times per day (e.g., every 4-5 hours).
+        Runs tasks scheduled ~5 times per day (e.g., every 4–5 hours).
+
+        Currently focused on:
+        - Fact table for crypto market data
         """
-        # Crypto domain
-        self.crypto_session.build_crypto_market_fact()
+        self.crypto_session.build_fact_crypto_market()
 
     def log_end(self):
         self.global_metrics_session.log_section(
@@ -139,9 +131,17 @@ class TransformationPipelineRunner:
 
 if __name__ == "__main__":
 
+    # usecase: fast demo
+    spark = (
+        SparkSession.builder.appName(f"CryptoETL_Transform_Test")
+        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+        .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+        .getOrCreate()
+    )
+
     try:
-        runner = TransformationPipelineRunner()
+        runner = TransformationPipeline(spark)
         runner.run_all_tasks()
         runner.log_end()
     finally:
-        runner.sc.stop()
+        spark.stop()
