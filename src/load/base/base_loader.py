@@ -449,7 +449,7 @@ class BaseLoader:
         self,
         table_name: str,
         fk_presence: bool,
-        fks_ref_table: Optional[dict],
+        fks_ref_table: Optional[dict] = None,
         mode: str = "append",
         notes: str = "",
         version: Optional[int] = None,
@@ -507,7 +507,7 @@ class BaseLoader:
             self.log(f"[ERROR] Failed to write to DW for {table_name}", table_name=table_name)
             return False
 
-        self.log(f"Successfully wrote {filtered_count} rows to {table_name}", table_name=table_name)
+        self.log(f"Successfully wrote {df.count()} rows to {table_name}", table_name=table_name)
 
         # Step 4: Persist load metadata
         transform_meta = self.read_last_transformation_metadata(table_name)
