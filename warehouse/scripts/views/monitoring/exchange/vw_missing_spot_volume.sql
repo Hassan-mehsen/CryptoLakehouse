@@ -6,12 +6,12 @@
 
 CREATE OR REPLACE VIEW vw_missing_spot_volume AS
 SELECT
- exchange_id,
- snapshot_timestamp,
- wallet_address,
- crypto_id,
- balance,
- currency_price_usd,
- total_usd_value
+    exchange_id,
+    snapshot_timestamp,
+    wallet_address,
+    crypto_id,
+    balance,
+    currency_price_usd,
+    total_usd_value
 FROM fact_exchange_assets
 WHERE spot_volume_usd IS NULL;

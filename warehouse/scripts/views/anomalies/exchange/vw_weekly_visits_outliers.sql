@@ -6,8 +6,8 @@
 
 CREATE OR REPLACE VIEW vw_weekly_visits_outliers AS
 SELECT
- exchange_id,
- snapshot_timestamp,
- weekly_visits
+    exchange_id,
+    snapshot_timestamp,
+    weekly_visits
 FROM dim_exchange_map
 WHERE weekly_visits > 100000000;

@@ -17,7 +17,7 @@ SELECT
         PARTITION BY fea.exchange_id, fea.snapshot_timestamp
         ORDER BY fea.total_usd_value DESC
     ) AS wallet_rank
-FROM fact_exchange_assets fea
-JOIN dim_exchange_id ei ON fea.exchange_id = ei.exchange_id
+FROM fact_exchange_assets AS fea
+INNER JOIN dim_exchange_id AS ei ON fea.exchange_id = ei.exchange_id
 WHERE fea.total_usd_value IS NOT NULL
-ORDER BY fea.snapshot_timestamp DESC,fea.exchange_id;
+ORDER BY fea.snapshot_timestamp DESC, fea.exchange_id ASC;

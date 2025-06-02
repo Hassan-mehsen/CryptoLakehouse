@@ -6,9 +6,9 @@
 
 CREATE OR REPLACE VIEW vw_high_fee_exchanges AS
 SELECT
- exchange_id,
- snapshot_timestamp,
- maker_fee,
- taker_fee
+    exchange_id,
+    snapshot_timestamp,
+    maker_fee,
+    taker_fee
 FROM dim_exchange_map
 WHERE maker_fee > 0.5 OR taker_fee > 0.5;
