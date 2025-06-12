@@ -1,7 +1,8 @@
 from sqlalchemy import (
     Table, Column, Integer, String, Float, 
     MetaData, ForeignKey, Boolean, DateTime, 
-    PrimaryKeyConstraint, Text, ARRAY, Date
+    PrimaryKeyConstraint, Text, ARRAY, Date,
+    Index
 )
 
 metadata = MetaData()
@@ -15,6 +16,7 @@ dim_exchange_id = Table(
     "dim_exchange_id", metadata,
     Column("exchange_id", Integer, primary_key=True),     # From /exchange/map -> cast to int (Spark)
     Column("name", String, nullable=False),               # From /exchange/map -> string
+    Index("idx_exchange_name", "name")
 )
 
 # Dimension: Time-variant exchange info
@@ -76,7 +78,8 @@ dim_crypto_id = Table(
     Column("platform_id", Integer),                                # /cryptocurrency/map -> platform.id
     Column("platform_name", String(255)),                          # /cryptocurrency/map -> platform.name
     Column("platform_symbol", String(20)),                         # /cryptocurrency/map -> platform.symbol
-    Column("platform_token_address", String(255))                  # /cryptocurrency/map -> platform.token_address
+    Column("platform_token_address", String(255)),                 # /cryptocurrency/map -> platform.token_address
+    Index("idx_crypto_name", "name")
 )
 
 # Dimension: Time-variant crypto metadata (e.g., rank, activity)
