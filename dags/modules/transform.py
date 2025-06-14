@@ -47,6 +47,7 @@ Purpose and Benefits
 - Keeps logs, UI, and Spark jobs **easy to track and debug**
 - Prevents unexpected behavior when tasks overlap
 """
+
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.operators.bash import BashOperator
 from datetime import datetime, timezone
@@ -109,7 +110,6 @@ def get_transform_task():
     if len(task) == 0:
         log.warning(f"[TransformScheduler] No task scheduled at {now.isoformat()}.")
         return []
-
 
     log.info(f"[TransformScheduler] Task triggered at {now.isoformat()} -> {[task.task_id for task in task]}")
 
