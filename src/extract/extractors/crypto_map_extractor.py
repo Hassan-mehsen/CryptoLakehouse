@@ -1,7 +1,15 @@
-from extract.base_extractor import BaseExtractor
 from pandas import DataFrame
 from typing import Optional
+from pathlib import Path
 import time
+import sys
+
+
+# Resolve  path dynamically
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from extract.base_extractor import BaseExtractor
 
 
 class CryptoMapExtractor(BaseExtractor):
@@ -90,7 +98,7 @@ class CryptoMapExtractor(BaseExtractor):
                         {
                             "id": x.get("id"),
                             "rank": x.get("rank"),
-                            "name": x.get("name"),                            
+                            "name": x.get("name"),
                             "symbol": x.get("symbol"),
                             "is_active": x.get("is_active"),
                             "first_historical_data": x.get("first_historical_data"),
@@ -139,7 +147,9 @@ class CryptoMapExtractor(BaseExtractor):
 
             attempts += 1
             backoff = attempts
-            self.log(f"Attempt {attempts}/{self.MAX_RETRIES} failed to fetch valid data. Retrying after {2**backoff} seconds...")
+            self.log(
+                f"Attempt {attempts}/{self.MAX_RETRIES} failed to fetch valid data. Retrying after {2**backoff} seconds..."
+            )
             time.sleep(2**backoff)  # Exponential backoff
 
         if not raw_data or not raw_data.get("data"):

@@ -1,9 +1,16 @@
-from extract.base_extractor import BaseExtractor
 from typing import List, Optional, Tuple
 from pandas import DataFrame
+from pathlib import Path
 import json
 import math
 import time
+import sys
+
+# Resolve  path dynamically
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from extract.base_extractor import BaseExtractor
 
 
 class ExchangeInfoExtractor(BaseExtractor):
@@ -131,7 +138,9 @@ class ExchangeInfoExtractor(BaseExtractor):
                 invalid_data.append((k, v))
 
         if invalid_data:
-            self.log(f"Ignored {len(invalid_data)} malformed entries in exchanges_info : {[k for k, _ in invalid_data][:5]}...")
+            self.log(
+                f"Ignored {len(invalid_data)} malformed entries in exchanges_info : {[k for k, _ in invalid_data][:5]}..."
+            )
 
         return DataFrame(cleaned_exchange_info_data), len(cleaned_exchange_info_data)
 

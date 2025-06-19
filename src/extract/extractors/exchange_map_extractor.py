@@ -1,7 +1,14 @@
-from extract.base_extractor import BaseExtractor
 from pandas import DataFrame
 from typing import Optional
+from pathlib import Path
 import time
+import sys
+
+# Resolve  path dynamically
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from extract.base_extractor import BaseExtractor
 
 
 class ExchangeMapExtractor(BaseExtractor):
@@ -122,7 +129,9 @@ class ExchangeMapExtractor(BaseExtractor):
                 break  # Success
 
             attempts += 1
-            self.log(f"Attempt {attempts}/{self.MAX_RETRIES} failed to fetch valid data. Retrying after {2**attempts} seconds...")
+            self.log(
+                f"Attempt {attempts}/{self.MAX_RETRIES} failed to fetch valid data. Retrying after {2**attempts} seconds..."
+            )
             time.sleep(2**attempts)
 
         if not raw_data or not raw_data.get("data"):

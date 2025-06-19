@@ -1,8 +1,14 @@
-from extract.base_extractor import BaseExtractor
-from typing import List, Generator
 from pandas import DataFrame, to_numeric
+from typing import List, Generator
+from pathlib import Path
 import time
-import math
+import sys
+
+# Resolve  path dynamically
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from extract.base_extractor import BaseExtractor
 
 
 class CryptoListingsLatestExtractor(BaseExtractor):
@@ -32,7 +38,9 @@ class CryptoListingsLatestExtractor(BaseExtractor):
 
     def __init__(self):
         super().__init__(
-            name="crypto_listings_latest", endpoint="/v1/cryptocurrency/listings/latest", output_dir="crypto_listings_latest_data"
+            name="crypto_listings_latest",
+            endpoint="/v1/cryptocurrency/listings/latest",
+            output_dir="crypto_listings_latest_data",
         )
         self.params = {
             "start": None,

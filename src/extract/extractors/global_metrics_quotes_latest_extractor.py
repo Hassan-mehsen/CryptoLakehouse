@@ -1,7 +1,14 @@
-from extract.base_extractor import BaseExtractor
 from pandas import DataFrame, to_numeric
 from typing import Optional
+from pathlib import Path
 from time import sleep
+import sys
+
+# Resolve  path dynamically
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from extract.base_extractor import BaseExtractor
 
 
 class GlobalMetricsQuotesLatestExtractor(BaseExtractor):
@@ -15,7 +22,11 @@ class GlobalMetricsQuotesLatestExtractor(BaseExtractor):
     """
 
     def __init__(self):
-        super().__init__(name="global_metrics_quotes_latest", endpoint="/v1/global-metrics/quotes/latest", output_dir="global_metrics_data")
+        super().__init__(
+            name="global_metrics_quotes_latest",
+            endpoint="/v1/global-metrics/quotes/latest",
+            output_dir="global_metrics_data",
+        )
 
         self.snapshot_info = {
             "source_endpoint": self.endpoint,
@@ -68,7 +79,9 @@ class GlobalMetricsQuotesLatestExtractor(BaseExtractor):
             else:
                 quote_USD = {}
 
-            tracked_yearly_number = raw_data.get("tracked_yearly_number", {}) if raw_data.get("tracked_yearly_number", {}) else None
+            tracked_yearly_number = (
+                raw_data.get("tracked_yearly_number", {}) if raw_data.get("tracked_yearly_number", {}) else None
+            )
 
             record = {
                 # High-level market activity
@@ -119,8 +132,12 @@ class GlobalMetricsQuotesLatestExtractor(BaseExtractor):
                 "quote_altcoin_market_cap": quote_USD.get("altcoin_market_cap"),
                 "quote_total_market_cap_yesterday": quote_USD.get("total_market_cap_yesterday"),
                 "quote_total_volume_24h_yesterday": quote_USD.get("total_volume_24h_yesterday"),
-                "quote_total_market_cap_yesterday_percentage_change": quote_USD.get("total_market_cap_yesterday_percentage_change"),
-                "quote_total_volume_24h_yesterday_percentage_change": quote_USD.get("total_volume_24h_yesterday_percentage_change"),
+                "quote_total_market_cap_yesterday_percentage_change": quote_USD.get(
+                    "total_market_cap_yesterday_percentage_change"
+                ),
+                "quote_total_volume_24h_yesterday_percentage_change": quote_USD.get(
+                    "total_volume_24h_yesterday_percentage_change"
+                ),
                 # Timestamp
                 "last_updated": raw_data.get("last_updated"),
             }

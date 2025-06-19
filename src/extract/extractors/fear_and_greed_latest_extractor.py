@@ -1,7 +1,14 @@
-from extract.base_extractor import BaseExtractor
 from typing import Optional
 from pandas import DataFrame
+from pathlib import Path
 from time import sleep
+import sys
+
+# Resolve  path dynamically
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from extract.base_extractor import BaseExtractor
 
 
 class FearAndGreedLatestExtractor(BaseExtractor):

@@ -1,8 +1,15 @@
 from typing import List, Generator, Tuple, Optional
-from extract.base_extractor import BaseExtractor
 from pandas import DataFrame
+from pathlib import Path
 import time
 import json
+import sys
+
+# Resolve  path dynamically
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from extract.base_extractor import BaseExtractor
 
 
 class CryptoCategoryExtractor(BaseExtractor):
@@ -28,7 +35,9 @@ class CryptoCategoryExtractor(BaseExtractor):
     """
 
     def __init__(self):
-        super().__init__(name="crypto_category", endpoint="/v1/cryptocurrency/category", output_dir="crypto_category_data")
+        super().__init__(
+            name="crypto_category", endpoint="/v1/cryptocurrency/category", output_dir="crypto_category_data"
+        )
 
         self.status = ""
         self.MAX_RETRIES = 3
@@ -42,7 +51,7 @@ class CryptoCategoryExtractor(BaseExtractor):
             "category_ids_to_fetch": "",
             "num_categories_to_fetch": "",
         }
-    
+
     def find_category_ids_to_fetch(self) -> List[str]:
         """
         Determines which category IDs need to be fetched from the /category endpoint.
@@ -83,8 +92,8 @@ class CryptoCategoryExtractor(BaseExtractor):
             # First run no metadata in metadata/extract/crypto_category/ : fetch everything
             self.log(f"No previous load snapshot found — full initialization mode.")
             ids_to_fetch = category_ids_from_extract
-        
-        else : 
+
+        else:
             # Step 2: Load load snapshot (categories already fetched)
             try:
                 with open(load_snapshot_path, "r", encoding="utf-8") as f:
@@ -105,7 +114,7 @@ class CryptoCategoryExtractor(BaseExtractor):
                 f"{len(category_ids_already_fetched)} already fetched, "
                 f"{len(ids_to_fetch)} remaining to fetch."
             )
-            if len(ids_to_fetch) == 0 :
+            if len(ids_to_fetch) == 0:
                 ids_to_fetch = ["skip"]
                 self.status = "skip"
 
@@ -126,7 +135,7 @@ class CryptoCategoryExtractor(BaseExtractor):
         Yields:
             Tuple[dict, int]: Tuple of raw data dictionary and index in iteration.
         """
-        
+
         for i, category_id in enumerate(category_ids, start=1):
             success = False
 
@@ -142,7 +151,9 @@ class CryptoCategoryExtractor(BaseExtractor):
                     time.sleep(2)
                     break
                 else:
-                    self.log(f"Attempt {attempt} failed for category {i} (id={category_id[:6]}...). Retrying in {2**attempt}s...")
+                    self.log(
+                        f"Attempt {attempt} failed for category {i} (id={category_id[:6]}...). Retrying in {2**attempt}s..."
+                    )
                     time.sleep(2**attempt)
 
             if not success:
@@ -212,17 +223,17 @@ class CryptoCategoryExtractor(BaseExtractor):
             self.log("No category IDs to fetch. Skipping extraction.")
             self.log_section("END CryptoCategoryExtractor")
             return
-        
+
         if self.status == "skip":
             self.log("All categories are already fetched. Nothing left to process.")
             self.write_snapshot_info(self.snapshot_info)
             self.log_section("END CryptoCategoryExtractor")
-            return 
+            return
 
         # Step 2: Fetch and parse data for each category
         all_links = []
         for raw_data, pos in self.fetch_crypto_category(category_ids=category_ids):
-            
+
             parsed_category = self.parse(raw_category_data=raw_data, id_pos=pos)
             if parsed_category:
                 all_links.extend(parsed_category)

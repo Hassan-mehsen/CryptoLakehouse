@@ -1,10 +1,17 @@
-from extract.base_extractor import BaseExtractor
 from datetime import date, timedelta, datetime
 from typing import Optional, List, Generator
 from pandas import DataFrame
+from pathlib import Path
 import json
 import time
 import math
+import sys
+
+# Resolve  path dynamically
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from extract.base_extractor import BaseExtractor
 
 
 class CryptoInfoExtractor(BaseExtractor):
@@ -39,7 +46,11 @@ class CryptoInfoExtractor(BaseExtractor):
     def __init__(self):
         super().__init__(name="crypto_info", endpoint="/v2/cryptocurrency/info", output_dir="crypto_info_data")
 
-        self.params = {"id": None, "skip_invalid": "true", "aux": "urls,logo,description,tags,platform,date_added,notice,status"}
+        self.params = {
+            "id": None,
+            "skip_invalid": "true",
+            "aux": "urls,logo,description,tags,platform,date_added,notice,status",
+        }
         self.snapshot_info = {
             "source_endpoint": "/v1/cryptocurrency/map",
             "date_of_next_full_scan": None,
@@ -84,14 +95,10 @@ class CryptoInfoExtractor(BaseExtractor):
         last_scan_str = crypto_info_snapshot.get("date_of_next_full_scan")
         last_scan_date = datetime.strptime(last_scan_str, "%Y-%m-%d").date() if last_scan_str else None
 
-        if (
-            crypto_info_snapshot
-            and crypto_info_snapshot.get("ids_available_info", [])
-            and today_str != last_scan_date
-        ):
+        if crypto_info_snapshot and crypto_info_snapshot.get("ids_available_info", []) and today_str != last_scan_date:
             available_crypto_ids = set(crypto_info_snapshot.get("ids_available_info", []))
             self.snapshot_info["date_of_next_full_scan"] = crypto_info_snapshot.get("date_of_next_full_scan")
-        elif not crypto_info_snapshot or today_str >= last_scan_date :
+        elif not crypto_info_snapshot or today_str >= last_scan_date:
             available_crypto_ids = set()
             self.snapshot_info["date_of_next_full_scan"] = (date.today() + timedelta(days=30)).isoformat()
 

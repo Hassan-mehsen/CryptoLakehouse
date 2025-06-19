@@ -1,7 +1,14 @@
-from extract.base_extractor import BaseExtractor
 from pandas import DataFrame, to_numeric
 from typing import List, Optional
+from pathlib import Path
 import time
+import sys
+
+# Resolve  path dynamically
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from extract.base_extractor import BaseExtractor
 
 
 class CryptoCategoriesExtractor(BaseExtractor):
@@ -18,14 +25,12 @@ class CryptoCategoriesExtractor(BaseExtractor):
     """
 
     def __init__(self):
-        super().__init__(name="crypto_categories", endpoint="/v1/cryptocurrency/categories", output_dir="crypto_categories_data")
+        super().__init__(
+            name="crypto_categories", endpoint="/v1/cryptocurrency/categories", output_dir="crypto_categories_data"
+        )
 
         self.params = {"start": "1", "limit": "5000"}
-        self.snapshot_info = {
-            "source_endpoint": self.endpoint, 
-            "total_categories": None,
-            "category_ids": None
-        }
+        self.snapshot_info = {"source_endpoint": self.endpoint, "total_categories": None, "category_ids": None}
         self.MAX_RETRIES = 3
         self.category_ids = []
 
