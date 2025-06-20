@@ -36,11 +36,11 @@ from pathlib import Path
 import sys
 
 CURRENT_FILE = Path(__file__).resolve()
-SRC_PATH = CURRENT_FILE.parents[3]
+SRC_PATH = CURRENT_FILE.parents[1]
 sys.path.insert(0, str(SRC_PATH))
 JARS_PATH = "jars/postgresql-42.6.0.jar"
 
-from load.orchestrators.load_orchestrator import LoadPipeline
+from orchestrators.load_orchestrator import LoadPipeline
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
