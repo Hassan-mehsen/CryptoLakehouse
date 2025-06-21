@@ -16,8 +16,8 @@ Tags: init_pipeline, run_all
 """
 
 from airflow import DAG
-from airflow.providers.standard.operators.python import PythonOperator
-from airflow.providers.standard.operators.bash import BashOperator
+from airflow.operators.python import PythonOperator
+from airflow.operators.bash import BashOperator
 from datetime import datetime, timedelta
 from pathlib import Path
 import sys
