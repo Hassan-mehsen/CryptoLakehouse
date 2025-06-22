@@ -275,7 +275,7 @@ class CryptoTransformer(BaseTransformer):
             )
             return
 
-        if not self.should_transform("fact_crypto_category", self.last_categories_snapshot, force=False):
+        if not self.should_transform("fact_crypto_category", self.last_categories_snapshot, force=False, daily_comparison=False):
             self.log("fact_crypto_category is up to date. Skipping transformation.", table_name="crypto_categories_fact")
             return
 
@@ -310,7 +310,7 @@ class CryptoTransformer(BaseTransformer):
             self.log("[ERROR] No snapshot set for crypto_category_link. Aborting.", table_name="crypto_categories_link")
             return
 
-        if not self.should_transform("crypto_category_link", last_snapshot, force=False, daily_comparison=False):
+        if not self.should_transform("crypto_category_link", last_snapshot, force=False, daily_comparison=True):
             self.log("crypto_category_link is up to date. Skipping transformation.", table_name="crypto_categories_link")
             return
 
