@@ -21,7 +21,7 @@ Tags: maintenance, backup
 """
 
 from airflow import DAG
-from airflow.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from datetime import timedelta, datetime
 from pathlib import Path
 
@@ -30,7 +30,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BACKUP_SCRIPT = PROJECT_ROOT / "src" / "db" / "backup_postgres.py"
 
 default_args = {
-    "start_date": datetime(2025, 6, 10),
+    "start_date": datetime(2025, 6, 22, 14, 30),
     "retries": 1,
     "retry_delay": timedelta(minutes=5),
     "email_on_failure": True,

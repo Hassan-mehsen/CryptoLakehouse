@@ -16,8 +16,8 @@ Tags: init_pipeline, run_all
 """
 
 from airflow import DAG
-from airflow.operators.python import PythonOperator
-from airflow.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from datetime import datetime, timedelta
 from pathlib import Path
 import sys
@@ -67,7 +67,7 @@ def run_all_extractors():
 
 with DAG(
     dag_id="init_dag",
-    start_date=datetime(2025, 6, 10),
+    start_date=datetime(2025, 6, 21),
     schedule=None,  # manualley executed
     catchup=False,
     tags=["init_pipeline", "run_all"],
