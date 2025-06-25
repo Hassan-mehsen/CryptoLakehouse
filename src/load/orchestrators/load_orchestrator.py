@@ -62,11 +62,12 @@ class LoadPipeline:
         Loads daily-scheduled tables, primarily dimensions and link tables.
         """
         self.exchange_loader.load_dim_exchange_id()
+        self.exchange_loader.load_dim_exchange_info()
         self.exchange_loader.load_dim_exchange_map()
+        self.exchange_loader.load_fact_exchange_assets()
         self.crypto_loader.load_dim_crypto_id()
         self.crypto_loader.load_dim_crypto_map()
         self.crypto_loader.load_crypto_category_link()
-        self.exchange_loader.load_fact_exchange_assets()
 
     def run_weekly_tasks(self):
         """
@@ -74,7 +75,6 @@ class LoadPipeline:
 
         Includes descriptive metadata about exchanges and cryptos.
         """
-        self.exchange_loader.load_dim_exchange_info()
         self.crypto_loader.load_dim_crypto_info()
 
     def run_10x_daily_tasks(self):
