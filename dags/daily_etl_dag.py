@@ -1,7 +1,7 @@
 """
 Daily ETL DAG - Orchestration of the crypto data pipeline for the "daily" frequency.
 
-This DAG automates the full ETL pipeline once on weekdays at 8:00 AM. (UTC). It extracts, transforms, loads,
+This DAG automates the full ETL pipeline once on weekdays at 8:30 AM. (UTC). It extracts, transforms, loads,
 and post-processes the daily data snapshots powering the Data Warehouse.
 
 ----------------------------------------------------
@@ -54,17 +54,15 @@ from src.extract.extractors.crypto_category_extractor import CryptoCategoryExtra
 from src.extract.extractors.exchange_map_extractor import ExchangeMapExtractor
 from src.extract.extractors.crypto_map_extractor import CryptoMapExtractor
 
-# Import shared configs, runners, JAR dependencies, and utility function
+# Import shared configs, runners path, JAR dependencies, and utility function
 from dags.dag_utils import (
     SPARK_DELTA_OPT,
     TRANSFORM_RUNNER,
     LOAD_RUNNER,
     POSTGRES_JARS,
     SQL_DIR,
-    SQL_SCRIPTS,
     make_callable,
 )
-
 
 daily_extract = [
     ExchangeMapExtractor,
@@ -72,9 +70,10 @@ daily_extract = [
     CryptoMapExtractor,
     CryptoCategoryExtractor,
 ]
+
 transform_bash_command = f"spark-submit {SPARK_DELTA_OPT} {TRANSFORM_RUNNER}" + " daily"
 load_bash_command = f"spark-submit {SPARK_DELTA_OPT} {POSTGRES_JARS} {LOAD_RUNNER}" + " daily"
-
+sql_commands = ["CALL fill_nulls_exchange_map_info();", "CALL fill_nulls_spot_volume_and_wallet_weight();"]
 
 default_args = {
     "start_date": datetime(2025, 6, 22, 14, 30),
@@ -85,7 +84,7 @@ default_args = {
 with DAG(
     "daily_dag",
     default_args=default_args,
-    schedule="0 8 * * *",  # 0 8 * * 1-5  On weekdays at 8 AM.
+    schedule="20 8 * * 1-5",  # On weekdays at 8:30 AM.
     catchup=False,
     tags=["daily_dag", "daily_ETL"],
     template_searchpath=[str(SQL_DIR)],
@@ -113,8 +112,19 @@ with DAG(
 
     #  Data cleaning task
     with TaskGroup("post_load_daily", dag=dag) as post_load_daily:
-        for script in SQL_SCRIPTS:
-            SQLExecuteQueryOperator(task_id=f"run_{script}", conn_id="postgres_local", sql=script, database="crypto_dw")
+        tasks = []
+        for i, command in enumerate(sql_commands):
+            tasks.append(
+                SQLExecuteQueryOperator(
+                    task_id=f"run_procedure_{i+1}",
+                    conn_id="postgres_local",
+                    sql=command,
+                    database="crypto_dw",
+                )
+            )
+        # Serialize procedures to avoid locked table problems
+        for i in range(len(tasks) - 1):
+            tasks[i] >> tasks[i + 1]
 
     # Orchestrate
     extract_phase_daily >> transform_daily >> load_daily >> post_load_daily
