@@ -73,6 +73,7 @@ class TransformationPipeline:
         - Crypto ID and category linking
         """
         self.exchange_session.build_exchange_id_dim()
+        self.exchange_session.build_exchange_info_dim()
         self.exchange_session.build_exchange_map_dim()
         self.exchange_session.build_exchange_assets_fact()
         self.crypto_session.build_crypto_id_dim()
@@ -87,7 +88,6 @@ class TransformationPipeline:
         - Exchange metadata
         - Crypto project metadata
         """
-        self.exchange_session.build_exchange_info_dim()
         self.crypto_session.build_crypto_info_dim()
 
     def run_init_tasks(self):
