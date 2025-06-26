@@ -23,11 +23,7 @@ Tags: maintenance, backup
 from airflow import DAG
 from airflow.providers.standard.operators.bash import BashOperator
 from datetime import timedelta, datetime
-from pathlib import Path
-
-# path to the script
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-BACKUP_SCRIPT = PROJECT_ROOT / "src" / "db" / "backup_postgres.py"
+from dag_utils import BACKUP_SCRIPT
 
 default_args = {
     "start_date": datetime(2025, 6, 22, 14, 30),
