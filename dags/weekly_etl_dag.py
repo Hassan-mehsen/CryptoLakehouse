@@ -1,7 +1,7 @@
 """
 Weekly ETL DAG - Modular orchestration for the "weekly" frequency of the crypto data pipeline.
 
-This DAG automates extraction, transformation, and loading every Monday at 08:30 UTC,
+This DAG automates extraction, transformation, and loading every Monday at 08:00 UTC,
 targeting endpoints and business logic that only require weekly updates.
 
 ----------------------------------------------------
@@ -44,7 +44,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from src.extract.extractors.exchange_info_extractor import ExchangeInfoExtractor
 from src.extract.extractors.crypto_info_extractor import CryptoInfoExtractor
 
-# Import shared configs, runners, JAR dependencies, and utility function
+# Import shared configs, runners path, JAR dependencies, and utility function
 from dags.dag_utils import SPARK_DELTA_OPT, TRANSFORM_RUNNER, LOAD_RUNNER, POSTGRES_JARS, make_callable
 
 weekly_extract = [
@@ -58,14 +58,14 @@ load_bash_command = f"spark-submit {SPARK_DELTA_OPT} {POSTGRES_JARS} {LOAD_RUNNE
 
 default_args = {
     "start_date": datetime(2025, 6, 22, 14, 30),
-    "retries": 3,
-    "retry_delay": timedelta(minutes=8),
+    "retries": 2,
+    "retry_delay": timedelta(minutes=5),
 }
 
 with DAG(
     "weekly_dag",
     default_args=default_args,
-    schedule="30 8 * * 1",  # Every Monday at 8:30 AM
+    schedule="0 8 * * 1",  # Every Monday at 8:00 AM
     catchup=False,
     tags=["weekly_dag", "weekly_ETL"],
 ) as dag:
