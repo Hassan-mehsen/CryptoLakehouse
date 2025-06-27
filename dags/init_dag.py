@@ -15,11 +15,13 @@ After this initial run, regular operation should be handled by the 'master_etl_d
 Tags: init_pipeline, run_all
 """
 
-from airflow import DAG
+from dag_utils import TRANSFORM_RUNNER, LOAD_RUNNER, POSTGRES_JARS, SPARK_DELTA_OPT, make_callable
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.utils.task_group import TaskGroup
 from datetime import datetime, timedelta
 from pathlib import Path
+from airflow import DAG
 import sys
 
 # Resolve project path
@@ -54,15 +56,8 @@ extractors = [
     FearAndGreedHistoricalExtractor,
 ]
 
-transfom_runner_path = f"{PROJECT_ROOT}/src/transform/orchestrators/transform_pipeline_runner.py"
-load_runner_path = f"{PROJECT_ROOT}/src/load/orchestrators/load_pipeline_runner.py"
-jars_path = f"{PROJECT_ROOT}/jars/postgresql-42.6.0.jar"
-
-
-def run_all_extractors():
-    for extractor_class in extractors:
-        extractor_instance = extractor_class()
-        extractor_instance.run()
+transform_bash_command = f"spark-submit {SPARK_DELTA_OPT} {TRANSFORM_RUNNER}" + " all"
+load_bash_command = f"spark-submit {SPARK_DELTA_OPT} {POSTGRES_JARS} {LOAD_RUNNER}" + " all"
 
 
 with DAG(
@@ -83,21 +78,22 @@ with DAG(
     },
 ) as dag:
 
-    extract_all = PythonOperator(
-        task_id="extract_all",
-        python_callable=run_all_extractors,
-    )
+    # Extract task group
+    with TaskGroup("extract_all", dag=dag) as extract_all:
+        tasks = []
+        for extractor in extractors:
+            tasks.append(
+                PythonOperator(
+                    task_id=f"extract_{extractor.__name__}",
+                    python_callable=make_callable(extractor),
+                )
+            )
+        # Serialize extraction tasks to respect API rate limits (avoid parallel API calls)
+        for i in range(len(tasks) - 1):
+            tasks[i] >> tasks[i + 1]
 
-    transform_all = BashOperator(
-        task_id="transform_all",
-        bash_command=(f"spark-submit --packages io.delta:delta-spark_2.12:3.3.1 {transfom_runner_path} all"),
-    )
+    transform_all = BashOperator(task_id="transform_all", bash_command=transform_bash_command)
 
-    load_all = BashOperator(
-        task_id="load_all",
-        bash_command=(
-            f"spark-submit --packages io.delta:delta-spark_2.12:3.3.1 --jars {jars_path} {load_runner_path} all"
-        ),
-    )
+    load_all = BashOperator(task_id="load_all", bash_command=load_bash_command)
 
     extract_all >> transform_all >> load_all
