@@ -1,5 +1,5 @@
 """
-10x-per-Day ETL DAG - Orchestration for the "10x per day" frequency of the crypto data pipeline.
+10x-per-Day ELT DAG - Orchestration for the "10x per day" frequency of the crypto data pipeline.
 
 This DAG executes hourly, from 10:30 to 19:30 UTC on weekdays, handling endpoints that require high-frequency updates
 and providing near real-time market/business indicators.
@@ -18,7 +18,7 @@ and providing near real-time market/business indicators.
 ----------------------------------------------------
 - Straightforward, high-frequency orchestration for high-velocity endpoints.
 - Resource usage is optimized: only one Spark driver per phase.
-- Robust, deterministic, and easily traceable scheduling for near real-time ETL needs.
+- Robust, deterministic, and easily traceable scheduling for near real-time ELT needs.
 
 ----------------------------------------------------
          Operations & Usage
@@ -68,7 +68,7 @@ with DAG(
     default_args=default_args,
     schedule="30 10-19 * * 1-5",  # On Weekdays, every hour between 10:30 AM and 7:30 PM.
     catchup=False,
-    tags=["10x_dag", "10x_ETL"],
+    tags=["10x_dag", "10x_ELT"],
 ) as dag:
 
     # Extract

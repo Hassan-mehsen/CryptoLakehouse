@@ -1,5 +1,5 @@
 """
-Weekly ETL DAG - Modular orchestration for the "weekly" frequency of the crypto data pipeline.
+Weekly ELT DAG - Modular orchestration for the "weekly" frequency of the crypto data pipeline.
 
 This DAG automates extraction, transformation, and loading every Monday at 08:00 UTC,
 targeting endpoints and business logic that only require weekly updates.

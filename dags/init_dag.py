@@ -1,8 +1,8 @@
 """
-DAG: init_dag -- Full bootstrap of the ETL pipeline.
+DAG: init_dag -- Full bootstrap of the ELT pipeline.
 -------------------------------------------------
 
-This DAG performs a complete initial execution of the ETL pipeline, including:
+This DAG performs a complete initial execution of the ELT pipeline, including:
 - Running all extractors across all data frequencies (daily, weekly, etc.)
 - Executing the entire Spark transformation logic
 - Loading the transformed data into the PostgreSQL data warehouse
@@ -67,7 +67,7 @@ with DAG(
     catchup=False,
     tags=["init_pipeline", "run_all"],
     description=(
-        "This DAG is intended for the first and only run to initialize the entire ETL pipeline. "
+        "This DAG is intended for the first and only run to initialize the entire ELT pipeline. "
         "It executes all extractors, the full transformation pipeline, and loads all available data "
         "into the data warehouse. Once this initialization is complete, the regular daily operation "
         "should be handled by the 'master_dag'."

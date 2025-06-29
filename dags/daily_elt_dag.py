@@ -1,7 +1,7 @@
 """
-Daily ETL DAG - Orchestration of the crypto data pipeline for the "daily" frequency.
+Daily ELT DAG - Orchestration of the crypto data pipeline for the "daily" frequency.
 
-This DAG automates the full ETL pipeline once on weekdays at 8:30 AM. (UTC). It extracts, transforms, loads,
+This DAG automates the full ELT pipeline once on weekdays at 8:30 AM. (UTC). It extracts, transforms, loads,
 and post-processes the daily data snapshots powering the Data Warehouse.
 
 ----------------------------------------------------
@@ -86,7 +86,7 @@ with DAG(
     default_args=default_args,
     schedule="20 8 * * 1-5",  # On weekdays at 8:30 AM.
     catchup=False,
-    tags=["daily_dag", "daily_ETL"],
+    tags=["daily_dag", "daily_ELT"],
     template_searchpath=[str(SQL_DIR)],
 ) as dag:
 

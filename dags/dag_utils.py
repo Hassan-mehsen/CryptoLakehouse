@@ -3,7 +3,7 @@ dag_utils.py
 
 Centralized configuration for project paths, Spark/Postgres options, and common utility functions.
 This module simplifies maintenance by grouping all settings and helpers shared across DAGs, 
-guaranteeing consistency, modularity, and DRY principles for the ETL pipeline.
+guaranteeing consistency, modularity, and DRY principles for the ELT pipeline.
 
 Contents:
 - Project root path, Spark and JDBC configuration options.

@@ -1,5 +1,5 @@
 """
-5x-per-Day ETL DAG - Orchestration for the "5x per day" frequency of the crypto data pipeline.
+5x-per-Day ELT DAG - Orchestration for the "5x per day" frequency of the crypto data pipeline.
 
 This DAG runs five times per day (09:00, 11:00, 13:00, 15:00, 17:00 UTC) on weekdays, ideal for endpoints and datasets
 requiring frequent intra-day updates to keep the Data Warehouse nearly real-time.
@@ -62,7 +62,7 @@ with DAG(
     default_args=default_args,
     schedule="0 9,11,13,15,17 * * 1-5",  # On Weekdays at 9 and 11 AM, 1, 3, and 5 PM.
     catchup=False,
-    tags=["5x_dag", "5x_ETL"],
+    tags=["5x_dag", "5x_ELT"],
 ) as dag:
 
     # Extract
