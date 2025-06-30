@@ -67,7 +67,7 @@ with DAG(
     default_args=default_args,
     schedule="0 8 * * 1",  # Every Monday at 8:00 AM
     catchup=False,
-    tags=["weekly_dag", "weekly_ETL"],
+    tags=["weekly_dag", "weekly_ELT"],
 ) as dag:
 
     # Extract
