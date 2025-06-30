@@ -1,0 +1,18 @@
+# The python version that was udes is 3.10.12
+
+# === Core Airflow ===
+apache-airflow==3.0.2
+apache-airflow-providers-postgres==6.0.2
+
+# === Data Engineering ===
+pyspark==3.5.4
+delta-spark==3.3.1
+pandas==2.2.3
+
+# === Database ===
+SQLAlchemy==1.4.54
+alembic==1.16.1
+
+# === Utils & Config ===
+requests==2.32.3
+python-dotenv==1.1.0
