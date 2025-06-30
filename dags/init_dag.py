@@ -10,7 +10,8 @@ This DAG performs a complete initial execution of the ELT pipeline, including:
 This DAG is meant to be run manually (schedule=None) **once** during initial deployment
 or after a full reset of the database.
 
-After this initial run, regular operation should be handled by the 'master_etl_dag'.
+After this initial run, regular operation should be managed by the individual ELT DAGs, 
+each triggered according to its specific frequency (e.g., daily, weekly).
 
 Tags: init_pipeline, run_all
 """
