@@ -1,11 +1,11 @@
-# 📦 `data/` Folder — Crypto ETL Storage Layout
+# `data/` Folder - CryptoLakehouse Storage Layout
 
-This folder serves as the main **data lake** structure used by the Crypto ETL pipeline.  
+This folder serves as the main **data lake** structure used by the CryptoLakehouse pipeline.  
 It is organized into standard layers following the **Medallion Architecture**: Bronze and Silver.
 
 ---
 
-## 🟤 `bronze/` — Raw Ingested Snapshots
+## `bronze/` - Raw Ingested Snapshots
 
 This layer stores **raw snapshot files** extracted from the CoinMarketCap API.
 
@@ -20,7 +20,7 @@ Example :
 
 ---
 
-## ⚪ `silver/` — Cleaned & Enriched Tables
+## `silver/` - Cleaned & Enriched Tables
 
 This layer stores **transformed and enriched** data that is ready for analysis or loading into a Data Warehouse.
 
@@ -33,7 +33,7 @@ Each folder contains the **Delta Lake files** (e.g., `_delta_log/`, `part-*.parq
 
 ---
 
-## 🟡 `gold/` — Final Exports & DWH Backups
+## `gold/` - Final Exports & DWH Backups
 
 This layer stores **final deliverables and backups** derived from the PostgreSQL Data Warehouse.
 
