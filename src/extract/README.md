@@ -1,23 +1,25 @@
-# 🧪 `extract/` Folder — Crypto ETL Extraction Layer
+# `extract/` Folder - CryptoLakehouse ELT Extraction Layer
 
-This folder contains all **extraction logic and base classes** responsible for fetching data from the CoinMarketCap API (and other sources), as the first step of the Crypto ETL pipeline.
+This folder contains all **extraction logic and base classes** responsible for fetching data from the CoinMarketCap API (and other sources), as the first step of the Crypto ELT pipeline.
 
 It follows a **modular and extensible design** to support multiple endpoints, retry logic, snapshot tracking, and proper separation of extractor responsibilities.
 
 ---
 
-## 🧱 Core Structure
+## Core Structure
 
+```bash
 extract/
 ├── base_extractor.py # Abstract base class shared by all extractors
 └── extractors/       # All individual extractor implementations
 └── runners/          # Local test script 
+```
 
 Each extractor class corresponds to one **API endpoint**, with snapshot handling, output storage, and error resilience built in.
 
 ---
 
-## 🔧 `BaseExtractor` Capabilities
+## `BaseExtractor` Capabilities
 
 All extractors inherit from `BaseExtractor`, which provides:
 
@@ -29,7 +31,7 @@ All extractors inherit from `BaseExtractor`, which provides:
 
 ---
 
-## 📁 Output Convention
+## Output Convention
 
 - Data files are saved under `data/bronze/<extractor_name>_data/`
 - Filenames include the UTC snapshot timestamp, for reproducibility
@@ -41,7 +43,7 @@ Example:
 
 ---
 
-## 📌 Design Decisions
+## Design Decisions
 
 - Most extractors perform **full extractions** (or full refreshes) and store data once per execution
 - In memory batching (e.g., `group_size = 5`) is only used for high-volume endpoints like `/listings/latest`
