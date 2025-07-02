@@ -90,7 +90,7 @@ class CryptoCategoryExtractor(BaseExtractor):
 
         if not self.read_last_snapshot():
             # First run no metadata in metadata/extract/crypto_category/ : fetch everything
-            self.log(f"No previous load snapshot found — full initialization mode.")
+            self.log(f"No previous load snapshot found --> full initialization mode.")
             ids_to_fetch = category_ids_from_extract
 
         else:

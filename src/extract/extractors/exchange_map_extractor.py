@@ -56,7 +56,7 @@ class ExchangeMapExtractor(BaseExtractor):
         cleaned_exchange_map_data = []
         invalid_data = []
 
-        last_snapshot = self.read_last_snapshot()
+        last_snapshot = self.read_last_snapshot() # replace this by None to force the extraction if needed
         # Check if this is not the first run (a snapshot was already saved)
         if last_snapshot:
             # Check if the lists are equal, maybe one or more IDs have been replaced

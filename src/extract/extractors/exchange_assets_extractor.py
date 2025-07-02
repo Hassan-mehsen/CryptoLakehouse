@@ -21,7 +21,7 @@ class ExchangeAssetsExtractor(BaseExtractor):
     using the `/v1/exchange/assets` endpoint from the CoinMarketCap API.
 
     This extractor performs a scan over a list of exchange IDs (retrieved from a previous
-    ExchangeMap snapshot) and collects wallet-level asset balances — such as token holdings,
+    ExchangeMap snapshot) and collects wallet-level asset balances such as token holdings,
     platform metadata, and pricing information.
 
     ---

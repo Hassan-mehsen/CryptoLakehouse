@@ -25,12 +25,12 @@ class CryptoListingsLatestExtractor(BaseExtractor):
     ---
 
     Key Features:
-    - **Dynamic data** updated every 60 seconds — no dependency on historical snapshots.
+    - **Dynamic data** updated every 60 seconds, no dependency on historical snapshots.
     - **Pagination** with `start` and `limit=200`, optimized for API credit usage (1 credit per 200 cryptos).
     - **Data enrichment** with extended fields (`aux`).
     - **Fault tolerance** with retry and exponential backoff on temporary API errors.
     - **Memory optimization**: groups multiple chunks together (e.g. 5) and saves each group
-    as a separate `.parquet` file — ideal for processing large volumes without overloading memory.
+    as a separate `.parquet` file, ideal for processing large volumes without overloading memory.
     - **Final aggregation** is avoided to improve scalability and ensure partial results are preserved
     even if the process fails mid-run.
 

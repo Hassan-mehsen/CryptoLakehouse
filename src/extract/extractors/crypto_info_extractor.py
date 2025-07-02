@@ -29,7 +29,7 @@ class CryptoInfoExtractor(BaseExtractor):
     Key Features:
     - **Differential extraction**: compares current `crypto_map` snapshot with existing info to fetch only missing entries.
     - **Initial full initialization**: occurs only once, fetching all active crypto IDs (~5000 entries).
-    - **Subsequent refreshes**: fetch only newly listed cryptos (typically 0–200 entries).
+    - **Subsequent refreshes**: fetch only newly listed cryptos (typically 0-200 entries).
     - **Efficient retry strategy** with exponential backoff on API failures.
     - **Safe parsing** and flattening of nested metadata structures (including URLs and tags).
     - **Snapshot tracking** for reproducibility, incremental logic, and auditability.
@@ -230,7 +230,7 @@ class CryptoInfoExtractor(BaseExtractor):
         Ensures:
         - Traceable data lineage.
         - Clean logging for each chunk and snapshot.
-        - Consistency with the overall ETL framework.
+        - Consistency with the overall ELT framework.
         """
         self.log_section("START CryptoInfoExtractor")
 
