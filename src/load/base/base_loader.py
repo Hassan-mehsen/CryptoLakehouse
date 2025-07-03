@@ -497,6 +497,7 @@ class BaseLoader:
         # Step 2: Optional FK validation
         if fk_presence:
             df, filtered_count = self.secure_fk_load(df=df, fks_ref_table=fks_ref_table, table_name=table_name)
+            self.log(f"Filtered {filtered_count} new rows to load", table_name=table_name)
             if df is None:
                 self.log(f"[ERROR] FK validation failed. Aborting load for {table_name}", table_name=table_name)
                 return False
