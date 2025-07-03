@@ -1,7 +1,7 @@
 """
 -> load_pipeline_runner.py
 
-Entry point script for executing the Load ETL pipeline using Apache Spark.
+Entry point script for executing the Load pipeline using Apache Spark.
 
 This script is designed to be executed via `spark-submit` from Airflow (or manually),
 and acts as the runtime dispatcher for different load frequencies: daily, 5x, 10x, weekly, or all.
@@ -11,11 +11,11 @@ Usage:
 
 Arguments:
     frequency: Specifies which group of load tasks to execute. Accepted values:
-        - "daily"   → Loads daily dimension and fact tables (IDs, links, exchange assets)
-        - "5x"      → Loads intra-day (5x/day) market facts (crypto prices, supply, etc.)
-        - "10x"     → Loads high-frequency data (categories, sentiment, global metrics)
-        - "weekly"  → Loads slower-changing metadata and descriptions
-        - "all"     → Loads all tables across all domains in recommended order
+        - "daily"   -> Loads daily dimension and fact tables (IDs, links, exchange assets)
+        - "5x"      -> Loads intra-day (5x/day) market facts (crypto prices, supply, etc.)
+        - "10x"     -> Loads high-frequency data (categories, sentiment, global metrics)
+        - "weekly"  -> Loads slower-changing metadata and descriptions
+        - "all"     -> Loads all tables across all domains in recommended order
 
 Architecture:
     - A single SparkSession is created per execution with an identifiable `appName`
@@ -23,8 +23,8 @@ Architecture:
     - This session is shared across all loader modules (Crypto, Exchange, GlobalMetrics, FearAndGreed),
       enabling efficient foreign key validation and metadata consolidation.
 
-    Spark UI will display the application as: `CryptoETL_Load_<frequency>`,
-    e.g. `CryptoETL_Load_10x` or `CryptoETL_Load_daily`.
+    Spark UI will display the application as: `CryptoELT_Load_<frequency>`,
+    e.g. `CryptoELT_Load_10x` or `CryptoELT_Load_daily`.
 
 This design ensures frequency-aligned modular loading while maintaining referential integrity
 and minimizing data duplication in the PostgreSQL Data Warehouse.
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     # Initialize SparkSession
     spark = (
         SparkSession.builder
-        .appName(f"CryptoETL_Load_{args.frequency}")
+        .appName(f"CryptoELT_Load_{args.frequency}")
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
         .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
         .config("spark.jars",JARS_PATH)

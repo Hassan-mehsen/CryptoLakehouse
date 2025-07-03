@@ -95,7 +95,7 @@ class LoadPipeline:
         """
         Loads medium-frequency metrics, including detailed market data per crypto.
 
-        Typically run ~5 times per day (every 4–5 hours).
+        Typically run ~5 times per day (every 4-5 hours).
         """
         self.crypto_loader.load_fact_crypto_market()
 
