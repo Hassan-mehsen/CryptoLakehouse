@@ -1,7 +1,7 @@
 # Load Layer
 
 This module contains the logic for loading transformed data from the Delta Lake (silver layer) into the PostgreSQL Data Warehouse.
-It is a core part of the ETL pipeline and is executed after the transformation phase.
+It is a core part of the ELT pipeline and is executed after the transformation phase.
 
 ---
 
@@ -19,7 +19,7 @@ This folder contains all domain-specific loaders. Each file corresponds to a spe
 
 ### `orchestrators/`
 
-This folder contains high-level coordination logic for full or partial load pipelines. The main component, load_orchestrator.py, defines the LoadPipeline class, which groups together all loaders and exposes methods like run_daily_tasks(), run_5x_daily_tasks(), and run_all_tasks(). These methods organize table loads by frequency and referential priority. The accompanying load_pipeline_runner.py script acts as an executable entry point, creating a SparkSession and invoking the appropriate pipeline method—designed for Airflow or spark-submit.
+This folder contains high-level coordination logic for full or partial load pipelines. The main component, load_orchestrator.py, defines the LoadPipeline class, which groups together all loaders and exposes methods like run_daily_tasks(), run_5x_daily_tasks(), and run_all_tasks(). These methods organize table loads by frequency and referential priority. The accompanying load_pipeline_runner.py script acts as an executable entry point, creating a SparkSession and invoking the appropriate pipeline method-designed for Airflow or spark-submit.
 
 ### `runners/`
 
