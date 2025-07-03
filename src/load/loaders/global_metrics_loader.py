@@ -14,6 +14,7 @@ class GlobalMetricsLoader(BaseLoader):
     def load_fact_global_market(self, version: int = None) -> None:
         """
         Loads the fact_global_market table from the Delta silver layer into the data warehouse.
+        This table is snapshot-based and does not require deduplication.
 
         This method assumes that the specified Delta version corresponds to a fully transformed
         snapshot that has not yet been loaded into the warehouse.

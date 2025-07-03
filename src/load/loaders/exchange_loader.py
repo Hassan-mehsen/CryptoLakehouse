@@ -67,7 +67,8 @@ class ExchangeLoader(BaseLoader):
         Loads the dim_exchange_info stable dimension table into the data warehouse.
 
         This table contains enriched metadata about exchanges.
-        Deduplication is enforced using `exchange_id` as the primary key.
+        Deduplication is enforced using `exchange_id` as the primary key,
+        to ensure no repeated values are inserted.
         Foreign key validation is performed against `dim_exchange_id`.
 
         Args:
@@ -142,6 +143,7 @@ class ExchangeLoader(BaseLoader):
         - `exchange_id` (must exist in dim_exchange_id)
         - `crypto_id` (must exist in dim_crypto_id)
 
+        This table is snapshot-based and does not require deduplication.
         The load operates in append mode, and only new transformation snapshots are considered.
 
         Args:

@@ -34,7 +34,8 @@ class CryptoLoader(BaseLoader):
         Loads the dim_crypto_id stable dimension table.
 
         This is the root table of the domain and must be loaded first, as many
-        other tables reference it. Applies deduplication on 'crypto_id'.
+        other tables reference it. Applies deduplication on 'crypto_id'to ensure 
+        no repeated values are inserted, only new rows (not present in the DW) are appended.
 
         Args:
             version (int, optional): Delta version to load. Defaults to latest.
@@ -65,7 +66,8 @@ class CryptoLoader(BaseLoader):
         """
         Loads the dim_crypto_info stable dimension table.
 
-        This table depends on `dim_crypto_id`. Applies deduplication on `crypto_id`.
+        This table depends on `dim_crypto_id`. Applies deduplication on `crypto_id`
+        to ensure no repeated values are inserted, only new rows (not present in the DW) are appended.
         Foreign key integrity is enforced before insert to ensure referential consistency.
 
         Args:
@@ -99,7 +101,8 @@ class CryptoLoader(BaseLoader):
         Loads the dim_crypto_category stable dimension table.
 
         This table is a reference dimension used by the crypto-category link table.
-        Applies deduplication on 'category_id'.
+        Applies deduplication on 'category_id' to ensure no repeated values are inserted.
+        Only new rows (not present in the DW) are appended.
 
         Args:
             version (int, optional): Delta version to load. Defaults to latest.
@@ -132,10 +135,11 @@ class CryptoLoader(BaseLoader):
 
         This is a many-to-many association table linking cryptos and categories.
         Deduplication is applied on the composite key (category_id, crypto_id).
+        To ensure no repeated values are inserted, only new rows (not present in the DW) are appended.
         Foreign key constraints are validated against both dimension tables to ensure data consistency.
 
         Additionally, all distinct category_ids currently in dim_crypto_category are collected
-        and stored in the load metadata for downstream usage (e.g., forecasting, filtering, etc.).
+        and stored in the load metadata.
 
         Args:
             version (int, optional): Delta version to load. Defaults to latest.
@@ -175,7 +179,8 @@ class CryptoLoader(BaseLoader):
         Loads the dim_crypto_map variant dimension table.
 
         This table contains dynamic mapping metadata for cryptos.
-        No deduplication is applied -- the entire transformed snapshot is appended as-is.
+        This table is snapshot-based and does not require deduplication,
+        the entire transformed snapshot is appended as-is.
         Foreign key integrity is enforced on referenced IDs before loading.
 
         Args:
@@ -209,6 +214,7 @@ class CryptoLoader(BaseLoader):
         Loads the fact_crypto_category fact table.
 
         This table captures aggregated metrics per crypto-category snapshot.
+        This table is snapshot-based and does not require deduplication.
         All rows from the transformed Delta table are appended at each load.
         Foreign key integrity is enforced before insertion to ensure consistency.
 
@@ -243,7 +249,8 @@ class CryptoLoader(BaseLoader):
         Loads the fact_crypto_market fact table.
 
         This is the core table containing market metrics for individual cryptos.
-        All transformed rows are appended at each execution (no deduplication).
+        This table is snapshot-based and does not require deduplication.
+        All transformed rows are appended at each execution.
         Foreign key constraints are validated to ensure referential integrity.
 
         Args:
@@ -277,7 +284,7 @@ class CryptoLoader(BaseLoader):
         Sequentially loads all crypto-related tables in dependency order.
 
         Intended for testing, demonstrations or batch reloads only.
-        Not designed for production scheduling (where tables are loaded independently).
+        Not designed for production scheduling.
 
         Args:
             version (int, optional): Delta version to use for all tables. If None, latest is used.

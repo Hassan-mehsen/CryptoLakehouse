@@ -22,7 +22,7 @@ class FearAndGreedLoader(BaseLoader):
     def load_fact_market_sentiment(self, version: int = None) -> None:
         """
         Loads the fact_market_sentiment table from the Delta silver layer into the data warehouse.
-
+        This table is snapshot-based and does not require deduplication.
         This loader reads a fully transformed Delta snapshot and writes it to the DWH in append mode.
         It uses metadata to ensure that only new, non-duplicated transformations are loaded.
 
