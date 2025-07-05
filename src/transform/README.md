@@ -1,6 +1,6 @@
 # `transform/` Folder Overview
 
-This directory contains all Spark-based transformation logic for the ETL pipeline.  
+This directory contains all Spark-based transformation logic for the CryptoLakhouse ELT pipeline.  
 It is organized by domain and role to ensure modularity, clarity, and scalability.
 
 ---
