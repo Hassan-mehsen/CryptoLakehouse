@@ -20,17 +20,16 @@ class BaseTransformer:
     Exposed helper methods include:
     - Structured logging to `logs/transform.log`
     - Reading raw input from the bronze layer (Parquet)
-    - Writing cleaned output to the silver layer (Delta Lake), with optional partitioning and schema evolution
+    - Writing cleaned output to the silver layer (Delta Lake), with optional partitioning, schema evolution, VACUUM and OPTIMIZE.
     - Inspecting DataFrame row count and schema for traceability
     - Discovering and retrieving latest input snapshot files
     - Persisting and reading transformation metadata in JSONL format
     - Determining whether a transformation is necessary via `should_transform()` based on snapshot freshness
     - Centralizing the run logic for each table via `_run_build_step()`:
         * Orchestrates: prepare -> write -> log -> metadata
-        * Ensures consistent ETL patterns across all table builds
+        * Ensures consistent ELT patterns across all table builds
 
     Design principles:
-    - Enforces a standard `.run()` method to be implemented by subclasses
     - Favors modularity, reusability, observability, and robustness
     - Minimizes boilerplate code for implementing new transformation steps
 
@@ -167,7 +166,7 @@ class BaseTransformer:
         mode: str = "overwrite",
         partition_by: Optional[List[str]] = None,
         vacuum: bool = False,
-        optimize: bool = False
+        optimize: bool = False,
     ) -> str:
         """
         Writes a DataFrame to Delta Lake format in the Silver layer of the data lake.
@@ -181,11 +180,11 @@ class BaseTransformer:
         ### Post-write behavior:
 
         - If `relative_path` is listed in `self.optimize_tables` **and** `optimize=True`:
-            → Applies `OPTIMIZE` to compact small files  
-            → Follows with `VACUUM` (7 days) to clean up obsolete data files
+            -> Applies `OPTIMIZE` to compact small files
+            -> Follows with `VACUUM` (7 days) to clean up obsolete data files
 
         - If `self.domain` is in `self.vacuum_domains` **and** `vacuum=True`:
-            → Triggers a heavier `VACUUM` with 30-day retention to purge outdated files
+            -> Triggers a heavier `VACUUM` with 30-day retention to purge outdated files
 
         These maintenance steps help improve query performance and manage disk space.
 
@@ -207,7 +206,7 @@ class BaseTransformer:
             self.log(f"Writing Delta file to: {full_path} (mode={mode})", table_name=relative_path)
 
             writer = df.write.format("delta").mode(mode)
-            
+
             if mode == "overwrite":
                 writer = writer.option("overwriteSchema", "true")
             elif mode == "append":
@@ -259,7 +258,6 @@ class BaseTransformer:
         except Exception as e:
             self.log(f"[ERROR] Failed to read Delta table from {full_path} -> {e}", table_name=relative_path)
             return None
-        
 
     def find_latest_data_files(self, relative_folder: str, limit: int = 1) -> Optional[List[Path]]:
         """
@@ -329,18 +327,20 @@ class BaseTransformer:
                     f"[WARN] Incomplete batch for timestamp {latest_timestamp}: {len(batch_files)}/{expected_batch_count} files found."
                 )
 
-            self.log(f"[OK] Latest complete batch found for timestamp {latest_timestamp} with {len(batch_files)} files.")
+            self.log(
+                f"[OK] Latest complete batch found for timestamp {latest_timestamp} with {len(batch_files)} files."
+            )
             return sorted(batch_files)
 
         except Exception as e:
-            self.log(f"[ERROR] Failed to find latest batch in {relative_folder} → {e}")
+            self.log(f"[ERROR] Failed to find latest batch in {relative_folder} -> {e}")
             return None
 
     def save_metadata(self, table_name: str, metadata: dict) -> None:
         """
-        Saves metadata as a JSON file inside the transform domain folder.
+        Saves metadata as a JSONL file inside the transform domain folder.
 
-        The file will be written to: metadata/transform/domain/table_name.json
+        The file will be written to: metadata/transform/domain/table_name.jsonl
 
         Args:
             table_name (str): Logical table name (used as filename).
@@ -386,7 +386,7 @@ class BaseTransformer:
                         return snapshot
 
         except Exception as e:
-            self.log(f"[ERROR] Failed to parse metadata for {table_name} → {e}")
+            self.log(f"[ERROR] Failed to parse metadata for {table_name} -> {e}")
             return None
 
     # --------------------------------------------------------------------
@@ -527,5 +527,5 @@ class BaseTransformer:
             return new_snapshot > last_value
 
         except Exception as e:
-            self.log(f"[ERROR] Failed to parse ended_at date from metadata → {e}")
+            self.log(f"[ERROR] Failed to parse ended_at date from metadata -> {e}")
             return True
