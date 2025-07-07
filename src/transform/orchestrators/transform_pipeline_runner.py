@@ -11,12 +11,12 @@ Usage:
 
 Arguments:
     frequency: Specifies which group of transformation tasks to execute. Accepted values:
-        - "daily"   → Executes all daily tasks (e.g. daily crypto + exchange updates)
-        - "5x"      → Executes intra-day (5x/day) market metrics and facts
-        - "10x"     → Executes high-frequency updates (categories, sentiment, metrics)
-        - "weekly"  → Executes heavier updates (e.g. exchange/crypto info refresh)
-        - "init"    → Executes one-time initialization logic (history, links, etc.)
-        - "all"     → Executes the full transformation pipeline (full rebuild)
+        - "daily"   -> Executes all daily tasks (e.g. daily crypto + exchange updates)
+        - "5x"      -> Executes intra-day (5x/day) market metrics and facts
+        - "10x"     -> Executes high-frequency updates (categories, sentiment, metrics)
+        - "weekly"  -> Executes heavier updates (e.g. exchange/crypto info refresh)
+        - "init"    -> Executes one-time initialization logic (history, links, etc.)
+        - "all"     -> Executes the full transformation pipeline (full rebuild)
 
 Architecture:
     - A single SparkSession is created per run (per frequency) with a clearly identifiable `appName`
@@ -24,8 +24,8 @@ Architecture:
     - This session is reused across all transformer domains (Exchange, Crypto, GlobalMetrics, FearAndGreed),
       which optimizes resource usage and centralizes log tracing.
 
-    Spark UI will display the application as: `CryptoETL_Transform_<frequency>`,
-    e.g. `CryptoETL_Transform_5x` or `CryptoETL_Transform_daily`.
+    Spark UI will display the application as: `CryptoELT_Transform_<frequency>`,
+    e.g. `CryptoELT_Transform_5x` or `CryptoELT_Transform_daily`.
 
 This design provides frequency-based modularity while maintaining a single SparkSession per run,
 enhancing performance observability and reducing complexity across Airflow and Spark layers.
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     # Initialize SparkSession
     spark = (
         SparkSession.builder
-        .appName(f"CryptoETL_Transform_{args.frequency}")
+        .appName(f"CryptoELT_Transform_{args.frequency}")
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
         .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
         .getOrCreate()
