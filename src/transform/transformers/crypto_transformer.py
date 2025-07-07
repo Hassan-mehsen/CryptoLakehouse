@@ -7,7 +7,7 @@ from pyspark.sql.types import *
 
 class CryptoTransformer(BaseTransformer):
     """
-    Handles the transformation pipeline for all cryptocurrency-related datasets,
+    Handles the transformation for all cryptocurrency-related datasets,
     preparing structured and enriched tables for the silver layer and the data warehouse.
 
     This transformer processes data from the following CoinMarketCap endpoints:
@@ -23,7 +23,7 @@ class CryptoTransformer(BaseTransformer):
     - Computing key financial KPIs (e.g., market cap ratios, price variations, supply metrics)
     - Broadcasting intermediate datasets for reuse across transformations
     - Generating both dimension and fact tables aligned with the DWH schema
-    - Writing outputs to partitioned Delta Lake tables (silver layer)
+    - Writing outputs to Delta Lake tables (silver layer)
     - Managing snapshot dependencies and ensuring transformation idempotency
     - Logging metadata and lineage information for audit and traceability
 
@@ -54,7 +54,7 @@ class CryptoTransformer(BaseTransformer):
         Executes the full transformation pipeline for the crypto domain in sequence.
 
         This method is intended for local testing or manual execution.
-        In production, transformations are triggered individually through DAG orchestration.
+        In production, transformations are grouped by frequency and triggered individually through DAG orchestration.
 
         Returns:
             None
@@ -111,7 +111,7 @@ class CryptoTransformer(BaseTransformer):
         Builds the `dim_crypto_map` table using the same snapshot previously assigned via `build_crypto_id_dim()`.
 
         Responsibilities:
-        - Validates that `self.last_map_snapshot` is set (dependency on `build_crypto_id_dim()`)
+        - Validates that `self.last_map_snapshot` (Path to the snapshot) is set (dependency on `build_crypto_id_dim()`)
         - Checks whether the snapshot has already been processed using metadata freshness
         - Delegates transformation to `__prepare_dim_crypto_map_df()` via `_run_build_step`
 
@@ -255,7 +255,7 @@ class CryptoTransformer(BaseTransformer):
         Orchestrates the transformation of the `fact_crypto_category` table using broadcasted category metrics.
 
         Responsibilities:
-        - Verifies that the latest category snapshot has been loaded via `build_dim_crypto_category`
+        - Verifies that the `self.latest_category_snapshot` (Path to the snapshot) has been loaded via `build_dim_crypto_category`
         - Checks if the data has already been processed (based on snapshot freshness metadata)
         - Delegates KPI enrichment and preparation to `__prepare_fact_crypto_category_df()` via `_run_build_step`
 
@@ -304,7 +304,6 @@ class CryptoTransformer(BaseTransformer):
             return None
 
         last_snapshot = snapshot_paths[0]
-        #self.last_map_snapshot = last_snapshot
 
         if last_snapshot is None:
             self.log("[ERROR] No snapshot set for crypto_category_link. Aborting.", table_name="crypto_categories_link")
@@ -329,7 +328,7 @@ class CryptoTransformer(BaseTransformer):
         This method:
         - Reads a typed Parquet snapshot containing crypto identity fields
         - Extracts and casts core columns (e.g., id, name, symbol, platform info)
-        - Ensures uniqueness on crypto_id and drops rows with missing values
+        - Ensures uniqueness on crypto_id and drops rows with missing critical values
         - Logs metadata and saves snapshot path for dependent tasks
 
         Args:
@@ -451,8 +450,8 @@ class CryptoTransformer(BaseTransformer):
 
         This method:
         - Reads a typed Parquet file containing extended metadata for cryptocurrencies
-        - Casts and normalizes date fields (date_added, date_launched, date_snapshot)
-        - Renames technical columns for clarity (e.g., logo → logo_url)
+        - Casts date fields (date_added, date_launched, date_snapshot)
+        - Renames technical columns for clarity (e.g., logo -> logo_url)
         - Ensures uniqueness on crypto_id and filters nulls
         - Returns a cleaned DataFrame ready for dimension loading
 

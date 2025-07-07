@@ -7,13 +7,20 @@ from pyspark.sql.types import *
 
 class GlobalMetricsTransformer(BaseTransformer):
     """
-    GlobalMetricsTransformer processes raw global market metrics into a clean,
-    structured fact table: `fact_global_market`.
+    Handles the transformation for global market metrics,
+    preparing structured and enriched fact tables for the silver layer and data warehouse.
 
-    Data is extracted from the `global_metrics_data` source (e.g., /v1/global-metrics/quotes/latest)
-    and enriched with calculated KPIs such as dominance delta, liquidity ratio, and growth rates.
+    This transformer processes data from the following CoinMarketCap endpoint:
+    - /v1/global-metrics/quotes/latest
 
-    This class supports daily ingestion and is designed for analytics layers .
+    Main responsibilities:
+    - Enforcing schemas and normalizing raw metrics data
+    - Cleansing data (null handling, type casting, outlier removal)
+    - Computing key market KPIs (e.g., BTC/ETH dominance, market cap variations, liquidity ratios, growth rates)
+    - Logging metadata and lineage information for audit and traceability
+    - Writing outputs to Delta Lake tables (silver layer) and generating fact tables aligned with the DWH schema
+
+    This transformer is designed to be modular, scalable, and cloud-ready.
     """
 
     def __init__(self, spark: SparkSession):
@@ -30,7 +37,7 @@ class GlobalMetricsTransformer(BaseTransformer):
         Steps:
         - Load the latest snapshot file from `global_metrics_data`
         - Skip processing if already handled (based on metadata)
-        - Delegate to `__prepare_global_market_df` to process and return a clean DataFrame
+        - Delegates the actual transformation to `__prepare_global_market_df()` via `_run_build_step`
         - Write results to the Silver layer using Delta Lake
         """
         self.log_section("Running GlobalMetricsTransformer")

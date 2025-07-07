@@ -31,11 +31,10 @@ class ExchangeTransformer(BaseTransformer):
 
     Design principles:
     - Each transformation step is isolated in its own method (`__prepare_*`)
-    - Metadata about each transformation (duration, input snapshot, status) is tracked
-    - Fault-tolerance is built in: missing or invalid inputs do not crash the pipeline
-    - Reusability and maintainability are favored through shared logic and logging
+    - **Metadata about each transformation** (duration, input snapshot, status) is tracked
+    - **Fault-tolerance** is built in: missing or invalid inputs do not crash the pipeline
+    - **Reusability and maintainability** are favored through shared logic and logging
 
-    This class is typically invoked as part of a DAG step in a Spark ETL job.
     """
 
     def __init__(self, spark: SparkSession):
@@ -60,8 +59,7 @@ class ExchangeTransformer(BaseTransformer):
         This method:
         - Loads the latest snapshot from the `exchange_map_data` folder
         - Skips transformation if the snapshot is already processed (via metadata check)
-        - Delegates the preparation to `__prepare_dim_exchange_id_df`
-        - Delegates writing, logging, and metadata to `_run_build_step`
+        - Delegates the actual transformation to `__prepare_dim_exchange_id_df` via `_run_build_step`. 
         """
         self.log(style="\n")
 
@@ -84,8 +82,7 @@ class ExchangeTransformer(BaseTransformer):
         This method:
         - Loads the latest snapshot from the `exchange_info_data` folder
         - Skips transformation if the snapshot is already processed (via metadata check)
-        - Delegates the preparation and broadcasting to `__prepare_dim_exchange_info_df`
-        - Delegates writing, logging, and metadata to `_run_build_step`
+        - Delegates the actual transformation to `__prepare_dim_exchange_info_df` via `_run_build_step`. 
         """
         self.log(style="\n")
 
@@ -110,7 +107,7 @@ class ExchangeTransformer(BaseTransformer):
         This method:
         - Depends entirely on the broadcasted data from `build_exchange_info_dim`
         - Does not perform snapshot freshness check, since the broadcasted data is transient
-        - Delegates the preparation to `__prepare_dim_exchange_map_df`
+        - Delegates the actual transformation to `__prepare_dim_exchange_map_df` via `_run_build_step`. 
         """
         self.log(style="\n")
 
@@ -123,8 +120,7 @@ class ExchangeTransformer(BaseTransformer):
         This method:
         - Loads the latest snapshot from `exchange_assets_data`
         - Skips transformation if the snapshot was already processed (checked via metadata timestamp)
-        - Delegates the preparation to `__prepare_exchange_assets_df`
-        - Delegates writing, logging, and metadata tracking to `_run_build_step`
+        - Delegates the actual transformation to `__prepare_exchange_assets_df` via `_run_build_step`. 
         """
         self.log(style="\n")
         
@@ -149,7 +145,7 @@ class ExchangeTransformer(BaseTransformer):
         Executes the full transformation pipeline for the exchange domain in sequence.
 
         This method is intended for local testing or manual execution.
-        In production, transformations are triggered individually through DAG orchestration.
+        In production, transformations are grouped by frequency and triggered individually through DAG orchestration.
         """
         self.log_section("Running ExchangeTransformer")
         self.build_exchange_id_dim()
