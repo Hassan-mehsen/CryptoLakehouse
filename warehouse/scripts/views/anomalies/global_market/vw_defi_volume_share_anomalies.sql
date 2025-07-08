@@ -4,7 +4,7 @@
 -- Notes     :
 --   - DeFi volume share is calculated as: defi_volume_24h / total_volume_24h
 --   - It must always be between 0.0 and 1.0.
---   - Any negative or > 1 values indicate data transformation or ETL error.
+--   - Any negative or > 1 values indicate data transformation or ELT error.
 -- ============================================================================
 
 CREATE OR REPLACE VIEW vw_defi_volume_share_anomalies AS
