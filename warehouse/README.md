@@ -1,6 +1,6 @@
 # Warehouse Directory
 
-This folder contains all the SQL and administrative components that define, validate, and operate the PostgreSQL Data Warehouse for the Crypto ETL project.
+This folder contains all the SQL and administrative components that define, validate, and operate the PostgreSQL Data Warehouse for the CryptoLakehouse project.
 
 > This directory is structured to support clear collaboration, technical evaluation, and long-term maintainability.
 
@@ -33,9 +33,9 @@ warehouse/
 ## Purpose & Best Practices
 
 This directory is meant to:
-- Isolate SQL logic from the Python ETL system (`src/`)
+- Isolate SQL logic from the Python ELT system (`src/`)
 - Centralize all **business intelligence** and **quality enforcement** layers
-- Enable automated and idempotent setup of roles, schemas, and privileges via shell + SQL
+- Enable **automated and idempotent setup** of roles, schemas, and privileges via shell + SQL
 - Enforce **domain-based modularity** (`exchange`, `crypto`, `global_market`, `market_sentiment`)
 - Support versioned and testable development of your DWH logic
 
