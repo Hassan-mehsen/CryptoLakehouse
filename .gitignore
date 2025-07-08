@@ -13,17 +13,17 @@
 # Ignore .env file
 .env
 
-# Ignore testing logs
-logs/test.log
-
 # Ignore all test scripts and outputs in src/extract/runners/ except __init__.py and README.md (structure + documentation).
 src/extract/runners/*
 !src/extract/runners/__init__.py
-!src/extract/runners/README.md
 
-# Ignore all test scripts and outputs in src/extract/transform/ except __init__.py
+# Ignore all test scripts and outputs in src/transform/runners except __init__.py
 src/transform/runners/*
 !src/transform/runners/__init__.py
+
+# Ignore all test scripts and outputs in src/load/runners/ except __init__.py
+src/load/runners/*
+!src/load/runners/__init__.py
 
 # Ignore tmp folder
 tmp/
@@ -31,8 +31,10 @@ tmp/
 # Ignore pycache folder's
 src/extract/**/*__pycache__
 src/transform/**/*__pycache__
+src/load/***/*__pycache__
 src/db/**/*__pycache__
 alembic/**/*__pycache__
+dags/***/*__pycache__
 
 # Ignore all parquet files in bronze by default
 data/bronze/**/*.parquet
@@ -46,3 +48,6 @@ data/silver/**/*.crc
 # Ignore all final output files (SQL dumps, CSV reports) in gold layer
 data/gold/dumps/*.sql
 data/gold/snapshots/*.csv
+
+# Ignore adedd jars
+jars/*
