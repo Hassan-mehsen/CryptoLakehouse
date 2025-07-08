@@ -103,7 +103,7 @@ LEFT JOIN dim_crypto_id AS dci ON ccl.crypto_id = dci.crypto_id
 WHERE dci.crypto_id IS NULL;
 
 
--- 14. Test for NULL metrics in fact_crypto_category (possible ETL miss)
+-- 14. Test for NULL metrics in fact_crypto_category (possible ELT miss)
 SELECT *
 FROM fact_crypto_category
 WHERE market_cap IS NULL OR volume IS NULL OR num_tokens IS NULL;
