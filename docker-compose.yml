@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  airflow:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: airflow
+    restart: always
+    env_file:
+      - .env
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${AIRFLOW_DB_URL}
+      AIRFLOW__CORE__FERNET_KEY: ""
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+      AIRFLOW__WEBSERVER__WEB_SERVER_PORT: 8080
+    ports:
+      - "8080:8080"
+    volumes:
+      - ${PROJECT_ROOT}/dags:/opt/airflow/dags
+      - ${PROJECT_ROOT}/src:/opt/airflow/src
+      - ${PROJECT_ROOT}/alembic:/opt/airflow/alembic
+      - ${PROJECT_ROOT}/warehouse:/opt/airflow/warehouse
+      - ${PROJECT_ROOT}/data:/opt/airflow/data
+      - ${PROJECT_ROOT}/logs:/opt/airflow/logs
+      - ${PROJECT_ROOT}/metadata:/opt/airflow/metadata
+
+  metabase:
+    image: metabase/metabase
+    container_name: metabase
+    ports:
+      - "3000:3000"
