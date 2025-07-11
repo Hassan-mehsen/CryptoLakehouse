@@ -2,7 +2,7 @@
 
 # === Core Airflow ===
 apache-airflow==3.0.2
-apache-airflow-providers-postgres==6.0.2
+apache-airflow-providers-postgres==6.0.0
 
 # === Data Engineering ===
 pyspark==3.5.4
