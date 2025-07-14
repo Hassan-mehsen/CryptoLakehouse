@@ -51,3 +51,6 @@ data/gold/snapshots/*.csv
 
 # Ignore adedd jars
 jars/*
+
+# Docker
+docker/.dockerignore
