@@ -1,7 +1,7 @@
 # `transform/` Folder Overview
 
 This directory contains all PySpark-based logic that transforms raw CoinMarketCap snapshots into structured, analytics-ready Delta Lake tables.
-It powers the Silver Layer of the CryptoLakehouse ELT pipeline and ensures compatibility with data warehousing, BI, and ML use cases.
+It powers the Silver Layer and ensures compatibility with data warehousing, BI, and ML use cases.
 
 
 ---

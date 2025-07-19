@@ -1,6 +1,6 @@
 # Alembic Migrations -- Crypto DWH
 
-This folder contains all schema migration files for the PostgreSQL Data Warehouse used in the CryptoLakehouse ELT pipeline.
+This folder contains all schema migration files for the PostgreSQL Data Warehouse.
 Each migration represents a versioned schema change, tracked via Alembic and aligned with the evolution of the models.py file.
 
 ## Structure

@@ -1,6 +1,6 @@
 # Warehouse Directory
 
-This folder contains all the SQL and administrative components that define, validate, and operate the PostgreSQL Data Warehouse for the CryptoLakehouse project.
+This folder contains all the SQL and administrative components that define, validate, and operate the PostgreSQL Data Warehouse.
 
 > This directory is structured to support clear collaboration, technical evaluation, and long-term maintainability.
 

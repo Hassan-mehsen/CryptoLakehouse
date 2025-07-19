@@ -1,4 +1,4 @@
-# `extract/` Folder - CryptoLakehouse ELT Extraction Layer
+# `extract/` Folder -  Extraction Layer
 
 This folder contains all **extraction logic and base classes** responsible for fetching data from the CoinMarketCap API (and other sources), as the first step of the Crypto ELT pipeline.
 

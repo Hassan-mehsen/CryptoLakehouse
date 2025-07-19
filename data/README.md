@@ -1,6 +1,6 @@
-# `data/` Folder - CryptoLakehouse Storage Layout
+# `data/` Folder -  Storage Layout
 
-This folder serves as the main **data lake** structure used by the CryptoLakehouse pipeline.  
+This folder serves as the main **data lake** structure used by the pipeline.  
 It is organized into standard layers following the **Medallion Architecture**: Bronze and Silver.
 
 ---

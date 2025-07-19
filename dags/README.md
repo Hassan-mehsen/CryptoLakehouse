@@ -1,7 +1,7 @@
 # DAGs Directory
 
 
-This folder contains all Airflow DAGs responsible for orchestrating the ELT pipeline of the CryptoLakehouse project.
+This folder contains all Airflow DAGs responsible for orchestrating the ELT pipeline of CryptoAnalytics.
 
 > Each DAG coordinates data ingestion, transformation, loading, and maintenance tasks, ensuring reliable and scheduled data flows with strong quality controls and optimized resource usage.
 
