@@ -1,106 +1,71 @@
-# CryptoLakehouse
+# CryptoAnalytics Platform
+
+## Résumé
+
+**CryptoAnalytics Platform** est un **pipeline ELT hybride Data Lake + Data Warehouse** pour **ingérer**, **transformer** et **servir** des données de cryptomonnaies en s’appuyant sur **Pandas**, **Apache Spark/Delta Lake**, PostgreSQL (**modèle étoile/flocon**), **Airflow** (orchestration), **Docker** et **Metabase** (visualisation).  
+En local, les données brutes (JSON -> Parquet Bronze) sont ensuite transformées et enrichies (Delta Lake - Silver), avant d’être chargées dans le DWH relationnel.
+
+> Les principaux résultats (dashboards Airflow, visualisations Metabase, monitoring Spark UI) et chaque étape détaillée sont accessibles via la table des matières ci-dessous.
+---
 
 ## Table des matières
 
-1. [Introduction & pitch du projet](#1-introduction--pitch-du-projet)
+1. [Introduction & pitch du projet](#1-introduction)
 2. [Contraintes API & Décisions d’Architecture](#2-contraintes-api--décisions-darchitecture)
-3. [Architecture globale du Lakehouse](#3-architecture-globale-du-lakehouse)
+3. [Architecture globale de la plateforme](#3-architecture-globale-de-la-plateforme)
 4. [Structure et rôle du Data Lake](#4-structure-et-rôle-du-data-lake)
 5. [Architecture et modélisation du Data Warehouse](#5-architecture-et-modélisation-du-data-warehouse)
-6. [Extraction layer](#6-extraction-layer)
-    - [6.1 Extraction des données – Architecture, Design et Implémentation](#61-extraction-des-données--architecture-design-et-implémentation)
-    - [6.2 Schémas séquentiels & Extraits de code — Extraction data engineering](#62-schémas-séquentiels--extraits-de-code--extraction-data-engineering)
-    - [6.3 Best Practices & Data Engineering Highlights - CryptoLakehouse Extraction](#63-best-practices--data-engineering-highlights---cryptolakehouse-extraction)
-7. [Transformation layer](#7-transformation-layer)
-    - [7.1 Architecture Spark & POO - Vision d’ensemble](#71-architecture-spark--poo--vision-densemble)
-    - [7.2 Architecture POO - Structuration du code](#72-architecture-poo--structuration-du-code)
-    - [7.3 Logique d’exécution du pipeline Spark & POO](#73-logique-dexécution-du-pipeline-spark--poo)
-    - [7.4 Exemple détaillé d’un transformer métier](#74-exemple-détaillé-dun-transformer-métier)
-    - [7.5 Optimisations, robustesse & scalabilité](#75-optimisations-robustesse--scalabilité)
-    - [7.6 Highlights & Best practices](#76-highlights--best-practices)
-8. [Load layer](#8-load-layer)
-    - [8.1 Architecture & vision d’ensemble - Load Layer](#81-architecture--vision-densemble---load-layer)
-    - [8.2 Architecture POO – Structuration du code](#82-architecture-poo--structuration-du-code)
-    - [8.3 Logique d’exécution du pipeline Load & POO](#83-logique-dexécution-du-pipeline-load--poo)
-    - [8.4 Pattern métier : chargement d’une table de faits](#84-pattern-métier--chargement-dune-table-de-faits)
-    - [8.5 Optimisations, robustesse & scalabilité](#85-optimisations-robustesse--scalabilité)
-    - [8.6 Highlights & Best practices](#86-highlights--best-practices)
-9. [Data Warehouse, SQL & Migrations - Structure et Rôles](#9-data-warehouse-sql--migrations--structure-et-rôles)
+6. [Extraction layer](#6-extraction-layer)  _Voir 6.1–6.3 pour plus de détails_
+7. [Transformation layer](#7-transformation-layer)  _Voir 7.1–7.6 pour plus de détails_
+8. [Load layer](#8-load-layer)  _Voir 8.1–8.6 pour plus de détails_
+9. [Data Warehouse, SQL & Migrations - Structure et Rôles](#9-data-warehouse-sql--migrations---structure-et-rôles)
 10. [Orchestration & Automatisation avec Airflow](#10-orchestration--automatisation-avec-airflow)
-
-**En cours d'implémentation :**
-
 11. [Docker](#11-docker)
 12. [Highlights sur les résultats + optimisations](#12-highlights-sur-les-résultats--optimisations)
-13. [Guide d'installation et de démarrage](#13-guide-dinstallation-et-de-démarrage)
+13. [Compétences développées](#13-compétences-développées)
+14. [Améliorations possibles & perspectives](#14-améliorations-possibles--perspectives)
+
+## Table des figures
+
+1. [Architecture globale du Lakehouse](#3-architecture-globale-de-la-plateforme) 
+2. [Structure du Data Lake](#4-structure-et-rôle-du-data-lake)
+3. [Domaines du Data Warehouse](#diagrammes-et-exemples-de-domaines)
+4. [Diagrammes séquentiels & extraits de code - Extraction data engineering](#62-schémas-séquentiels--extraits-de-code---extraction-data-engineering)
+5. [Diagramme UML - Architecture POO des Transformers](#diagramme-uml---architecture-poo-des-transformers)
+6. [Logique d’exécution du pipeline Spark & POO](#73-logique-dexécution-du-pipeline-spark--poo)
+7. [Architecture POO de la couche Load](#architecture-poo-de-la-couche-load)
+8. [Schéma séquentiel d’un chargement de dimension stable](#schéma-séquentiel-dun-chargement-de-dimension-stable)
+9. [Zoom sur les méthodes factorisées](#zoom-sur-les-méthodes-factorisées)
+10. [Schéma global d’orchestration Airflow](#schéma-global-dorchestration-airflow)
+11. [KPIs globaux du marché crypto dans le temps](#a-kpis-globaux-du-marché-crypto-dans-le-temps)
+12. [Tendance de dominance BTC & ETH](#b-tendance-de-dominance-btc--eth)
+13. [Top catégories par market cap / Indice de dominance par catégorie](#c-top-catégories-par-market-cap--indice-de-dominance-par-catégorie)
+14. [Market Cap vs Fully Diluted Cap](#d-market-cap-vs-fully-diluted-cap)
+15. [Évolution du secteur DeFi](#e-Évolution-du-secteur-defi)
+16. [Tendance quotidienne de l’indice Fear & Greed](#f-tendance-quotidienne-de-lindice-fear--greed)
+17. [Airflow - Suivi des exécutions semaine 1, 2, 3, 4 et détails](#2-observabilité-technique---monitoring--orchestration)
+18. [Spark UI - Historique et jobs en temps réel](#2-observabilité-technique---monitoring--orchestration)
 
 ---
+## 1. Introduction
 
-## 1. Introduction & pitch du projet
+**CryptoAnalytics Platform** est une plateforme analytique orientée cryptomonnaies, basée sur une architecture **ELT hybride** combinant Data Lake et Data Warehouse.
 
-Bienvenue sur **CryptoLakehouse**, la plateforme data conçue pour couvrir l’ensemble des besoins analytiques, décisionnels et stratégiques des entreprises du secteur crypto : pilotage de l’investissement, anticipation des tendances de marché, reporting avancé.
+- **Objectif** : historiser, transformer et valoriser des données crypto issues d’API publiques pour la BI, la prise de décision et la data science.
+- **Ingestion** : extraction quotidienne via API (Pandas), stockage brut au format **Parquet** (Bronze).
+- **Transformation** : nettoyage, enrichissement et calcul de KPI métiers dans la **Silver Layer** (Delta Lake) à l’aide de **Apache Spark**.
+- **Stockage analytique** : les données prêtes à l’analyse sont chargées via **Spark** dans un **Data Warehouse relationnel** (modèle étoile/flocon).
+- **Visualisation** : tableaux de bord via **Metabase**.
+- **Orchestration** : pipeline supervisé par **Apache Airflow**, conteneurisé avec **Docker**, avec gestion des logs, métadonnées et vues de qualité.
+- **Architecture hybride** : seule la Silver utilise Delta Lake ; la Gold sert d’**archive analytique** ; la logique BI repose sur le DWH.
 
-**CryptoLakehouse** propose une architecture “ML-ready” : toutes les données sont historisées, enrichies, nettoyées et structurées de façon à pouvoir intégrer facilement des modèles de machine learning dans un second temps
-
-**CryptoLakehouse** centralise l’ensemble du cycle de vie de la donnée crypto, depuis l’ingestion automatisée via API jusqu’à la valorisation des données pour la BI et le ML, en passant par la modélisation décisionnelle (Data Warehouse), la gestion des métadonnées (logs, qualité, lineage) et la visualisation avancée (Power BI, Metabase).
-
-Pensée pour s’intégrer facilement dans une architecture d’entreprise, la solution combine :
-
-- un **Data Lake “ML-ready”** (Parquet et Delta), permettant exploration, entraînement de modèles de machine learning et transformation à grande échelle,
-- un **Data Warehouse** performant (PostgreSQL, schéma en étoile/flocon) optimisé pour la BI et le reporting,
-- une **orchestration** industrialisée (Apache Airflow),
-- une **conteneurisation** complète (Docker) pour un déploiement rapide et fiable,
-- et une **couche de gestion des métadonnées** (tracking des traitements, logs,monitoring, traçabilité des données).
-
----
-### Contexte & Challenge
-
-| **Contexte**  | Les entreprises crypto ont besoin d’outils d’analyse avancée pour piloter l’investissement, anticiper les tendances et proposer des recommandations pertinentes grâce au machine learning. Or, les API publiques comme CoinMarketCap ne fournissent pas d’historique, ce qui limite la profondeur des analyses et la pertinence des modèles prédictifs.  |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Challenge** | Construire un historique quotidien, enrichir et transformer la donnée brute, calculer des KPI métiers et exposer une architecture data robuste : **Data Lake “ML-ready”** pour la data science, la modélisation et le ML, Data Warehouse optimisé pour la BI/reporting, le tout supervisé par une couche de métadonnées assurant traçabilité et qualité. |
-
----
-### Architecture ELT
-
-**CryptoLakehouse** adopte une architecture moderne de type **ELT** :
-
-- **Extract** : extraction automatisée des données depuis les APIs du marché crypto,
-- **Load** : chargement direct des données brutes dans un **Data Lake “ML-ready”** (Parquet),
-- **Transform** : nettoyage, enrichissement, calculs d’indicateurs et préparation analytique à grande échelle avec Spark(Enregistrement des données transformées en format Delta dans le data lake)
-- **Load final** : chargement des données prêtes à l’analyse dans un Data Warehouse pour la BI, le reporting.
-
-Le pipeline est entièrement orchestré et monitoré via Airflow, Docker et la gestion des métadonnées.
-
----
-### Objectifs principaux
-
-- **Industrialiser l’ingestion et la transformation des données crypto** : extraction automatisée, traitement avancé, stockage fiable et scalable.
-- **Fournir une base analytique solide pour générer des KPI métiers** : volatilité, rendement, capitalisation, dominance, tendances et corrélations.
-- **Centraliser, historiser et valoriser la donnée crypto** au service de la BI, du reporting avancé et de la data science/machine learning.
-- **Offrir une plateforme “ML-ready”** : extraction, nettoyage, enrichissement et préparation des données pour l’IA et l’analyse prédictive dans un Data Lake dédié.
-- **Assurer l’industrialisation et l’automatisation** grâce à Airflow, Docker, et **des frameworks orientés objet (POO) couvrant toutes les phases du pipeline**, de l’extraction à la valorisation des données.
-- **Montrer une maîtrise complète du cycle de vie d’un projet data** : extraction, transformation, load, modélisation DWH, orchestration, déploiement Docker, documentation technique.
-- **Fournir une base analytique robuste** pour alimenter les dashboards Power BI/Metabase et accompagner la prise de décision data-driven.    
-
----
-
-### Pourquoi CryptoLakehouse ?
-
-Dans un marché crypto ultra-dynamique, disposer d’une solution unifiant **ingestion, préparation, analyse et exploitation des données** est un atout majeur pour toute entreprise : pilotage de l’activité, veille stratégique, détection d’opportunités, optimisation de la prise de décision et accélération des projets de data science et d’IA.
-
-**CryptoLakehouse** incarne cette approche moderne :
-
-- Architecture “Lakehouse” (Data Lake “ML-ready” + Data Warehouse décisionnel)
-- Pipeline **ELT** automatisé, scalable et supervisé
-- Plateforme prête pour la BI et le machine learning
-- Gestion des métadonnées, traçabilité et gouvernance professionnelle
-- Facilement extensible et maintenable
+**Challenge** : construire un historique quotidien fiable, transformer la donnée brute, calculer des KPI métiers et exposer une architecture analytique robuste combinant **Data Lake** et **Data Warehouse**, tout en assurant **qualité**, **traçabilité** et **automatisation** des traitements.
 
 ---
 
 ## 2. Contraintes API & Décisions d’Architecture
 
-Le pipeline CryptoLakehouse est **conçu pour maximiser la valeur analytique des données crypto tout en respectant les contraintes strictes imposées par les APIs publiques** (CoinMarketCap).
+Le pipeline est **conçu pour maximiser la valeur analytique des données crypto tout en respectant les contraintes strictes imposées par les APIs publiques** (CoinMarketCap).
 
 #### **Contraintes majeures**
 - **Quota mensuel strict (ex: 10 000 crédits/mois)** :  
@@ -142,71 +107,74 @@ Le pipeline CryptoLakehouse est **conçu pour maximiser la valeur analytique des
 Cette stratégie data-driven assure à la fois **performance, robustesse, et maîtrise des coûts** à chaque étape.
 
 **En synthèse :**  
-> Les contraintes API ne sont pas un frein, mais un **moteur d’innovation** : elles ont guidé le design du pipeline, son orchestration intelligente par fréquence, l’historisation systématique, et la robustesse qui caractérisent CryptoLakehouse.
+> Les contraintes API ne sont pas un frein, mais un **moteur d’innovation** : elles ont guidé le design du pipeline, son orchestration intelligente par fréquence, l’historisation systématique, et la robustesse qui caractérisent cette platform.
 >
 >_Ces choix techniques, dictés par la réalité des APIs, assurent une **industrialisation**, une **résilience** et une **évolutivité** prêtes pour le scale-up métier._
 
 --- 
 
-## 3. Architecture globale du Lakehouse
+## 3. Architecture globale de la plateforme
 
-L’architecture de **CryptoLakehouse** s’appuie sur le pattern Lakehouse :  
-Elle combine la flexibilité et la scalabilité d’un **Data Lake multi-couches** (bronze, silver, gold) avec la structuration analytique orientée business, optimisée pour le reporting et le décisionnel grâce à un **Data Warehouse**.
+L’architecture de **CryptoAnalytics Platform** s’appuie sur une approche **hybride Lake + Data Warehouse**.  
+Elle combine :
+- un **Data Lake multi-couches** (Bronze, Silver, Gold) pour la centralisation, l’historisation, la transformation distribuée, et comme **source pour le machine learning et la data science**,
+- un **Data Warehouse relationnel** pour la modélisation analytique, la BI et le reporting.
 
-Un **pipeline ELT** alimente et transforme les données au sein du Lakehouse, orchestré par **Airflow** et rendu portable via **Docker**.  
-La qualité et la traçabilité sont garanties par une gestion attentive des **métadonnées** à chaque étape.
+Le pipeline suit un modèle **ELT**, orchestré par **Apache Airflow**, exécuté en environnement **Dockerisé**, avec une gestion rigoureuse des **métadonnées** (logs, qualité, traçabilité).
 
-![lakehouse](/docs/diagrams/lakehouse/lakhouse.png)
+![architecture](/docs/lakehouse/lakhouse.png)
 
 ### **Étapes du pipeline :**
-1. **Ingestion** : extraction automatisée depuis les APIs vers la couche **bronze** (raw, historisée en Parquet)
-2. **Transformation & enrichissement** (avec Spark) : passage en couche **silver** (nettoyée, prête pour ML/BI, avec une couche Delta pour garantir les propriétés ACID et assurer la traçabilité)
-3. **Chargement** dans le **Data Warehouse** : analyse métier, BI et reporting
-4. **Backup** : sauvegarde du Data Warehouse dans la couche **gold**
+1. **Ingestion** (Pandas) : extraction automatisée via API vers la couche **Bronze** (stockage brut en Parquet, historisé par date de snapshot).
+2. **Transformation & enrichissement** (Apache Spark) : passage en **Silver** (format Delta Lake, données nettoyées, enrichies, prêtes pour la BI/ML).
+3. **Chargement dans le Data Warehouse** : les données Silver sont transformées, agrégées et modélisées (étoile/flocon) dans un entrepôt relationnel dédié à l’analyse.
+4. **Backup analytique** : les exports du DWH sont historisés dans la couche **Gold** du Data Lake (Delta), à des fins d’archivage et de traçabilité.
 
-### **Outils clés :**
-- **Airflow** : orchestration et automatisation de l’ensemble du pipeline
-- **Docker** : portabilité et déploiement reproductible sur tous environnements
-- **Metadata** : gestion centralisée de la qualité, des logs et de la traçabilité à chaque étape
+---
+
+### **Outils clés :**
+- **Apache Airflow** : orchestration dynamique selon la fréquence métier des datasets
+- **Apache Spark** : transformation distribuée des données en Silver
+- **Pandas** : ingestion initiale et préparation de la couche Bronze
+- **Docker** : conteneurisation et reproductibilité du pipeline
+- **Metadata layer** : gestion des logs, stats d’extraction, monitoring et qualité
 
 ---
 
 **Cette architecture assure :**
-- **Historisation complète** : conservation de la donnée brute et transformée à chaque étape (bronze/silver/gold, gestion des métadonnées)
-- **Pipeline scalable & industrialisé** : automatisation, orchestration (**Airflow**) et containerisation (**Docker**)
-- **Données prêtes pour la data science, ML & BI** : données nettoyées, enrichies, prêtes à l’emploi (silver/gold, Data Warehouse)
-- **Gouvernance & traçabilité robustes** : centralisation de la qualité, des logs et de l’audit via les **métadonnées**
+- **Historisation incrémentale** : chaque snapshot est horodaté et stocké dans les couches appropriées
+- **Pipeline industrialisé et modulaire** : orchestration fine, découplage complet des phases ELT
+- **Données prêtes pour la BI et la data science** : nettoyage et enrichissement réalisés en Silver, structure analytique dans le DWH
+- **Traçabilité complète** : logs, statistiques API, metadata techniques et métiers centralisés
 
 ---
 
 ## 4. Structure et rôle du Data Lake
 
 
-![datalake](/docs/diagrams/lakehouse/datalake.png)
+![datalake](/docs/lakehouse/datalake.png)
 
-Le Data Lake de CryptoLakehouse est structuré en trois couches :
+Le Data Lake de **CryptoAnalytics Platform** est structuré en trois couches fonctionnelles :
 
-- **Bronze** : stockage brut des données telles qu’extraites des APIs, au format Parquet (choisi pour optimiser les ressources et l’efficacité par rapport au JSON natif des APIs).  
-  Cette couche garantit l’historisation et la traçabilité de la donnée d’origine.
+- **Bronze** : stockage brut des données extraites des APIs, au format **Parquet**, pour des raisons de performance et de compatibilité avec Spark.  
+  Cette couche assure l’**historisation complète** et la **traçabilité** des données sources.
 
-- **Silver** : données nettoyées, enrichies et transformées à l’aide de Spark, avec Delta Lake pour assurer les propriétés ACID, optimiser la gestion des fichiers Parquet, et renforcer la traçabilité des traitements.  
-  Ces datasets sont prêts pour les analyses avancées, la data science et le machine learning.
+- **Silver** : données nettoyées, enrichies et transformées via **Apache Spark**, stockées au format **Delta Lake** (ACID, versioning, optimisation des fichiers).  
+  Les **KPI métiers y sont également calculés**, ce qui en fait une couche analytique prête à être chargée dans le Data Warehouse.
 
-- **Gold** : cette couche sert principalement à stocker des backups ou snapshots du Data Warehouse, assurant ainsi la résilience, la restauration possible et l’audit des données.  
-  Elle peut également accueillir les jeux de données finaux produits par des pipelines de data science ou de machine learning :  
-    - **scores prédictifs**  
-    - **prédictions des valeurs de cryptos**  
-    - **prédictions d’indices boursiers du marché**  
-    - **résultats d’algorithmes (clustering, classification, etc.)**  
-    - **tables métiers enrichies prêtes pour la BI**
+- **Gold** : utilisée comme **zone d’archivage analytique**, contenant des **exports du Data Warehouse** à des fins de **backup, traçabilité et audit**.
 
-Chaque couche répond à un objectif précis : conservation, préparation ou valorisation de la donnée, et la gestion attentive des métadonnées assure la gouvernance à chaque étape.
+Chaque couche répond à un objectif précis :  
+- **Bronze** = conservation brute  
+- **Silver** = structuration et calcul métier  
+- **Gold** = archivage analytique  
+Le tout est supervisé par une gestion rigoureuse des **métadonnées** à chaque étape (horodatage, logs, stats de traitement).
 
 ----
 
 ## 5. Architecture et modélisation du Data Warehouse
 
-**Le Data Warehouse de CryptoLakehouse** a été conçu pour être **modulaire**, **scalable** et **orienté analytique**, afin de centraliser, historiser et croiser l’ensemble des données critiques issues de l’écosystème crypto.
+**Le Data Warehouse de CryptoAnalytics Platform** a été conçu pour être **modulaire**, **scalable** et **orienté analytique**, afin de centraliser, historiser et croiser l’ensemble des données critiques issues de l’écosystème crypto.
 
 **Objectif** : optimiser à la fois la **performance métier** (requêtes BI rapides, analyses avancées) et la **robustesse technique** (gouvernance, historisation, évolutivité).
 
@@ -289,7 +257,7 @@ Ce choix d’architecture permet de combiner le meilleur des deux mondes :
 
 
 **En résumé :**
-L’architecture du Data Warehouse CryptoLakehouse allie :
+L’architecture du Data Warehouse de la plateforme CryptoAnalytics allie :
 - Une simplicité d’usage et des performances analytiques optimales pour la BI,
 - Une robustesse, une évolutivité et une scalabilité garanties,
 - Historisation et traçabilité totales
@@ -300,7 +268,7 @@ le tout en optimisant les ressources et la maintenabilité du projet.
 
 ## 6. Extraction layer
 
-### 6.1 Extraction des données – Architecture, Design et Implémentation
+### 6.1 Extraction des données - Architecture, Design et Implémentation
 
 La phase d’extraction constitue le **point d’entrée du pipeline ELT**.
 Son rôle est de **collecter, historiser et fiabiliser** les données issues de multiples endpoints d’API, en garantissant :
@@ -425,9 +393,9 @@ Son rôle est de **collecter, historiser et fiabiliser** les données issues de 
 - **Séparation des responsabilités** : chaque extracteur reste spécifique à son endpoint, le code partagé reste factorisé et testé.
 
 ---
-### 6.2 Schémas séquentiels & Extraits de code — Extraction data engineering
+### 6.2 Schémas séquentiels & Extraits de code
 
-L’architecture d’extraction de CryptoLakehouse repose sur des workflows robustes et industrialisés, à la fois traçables et optimisés pour le big data.  
+L’architecture d’extraction se repose sur des workflows robustes et industrialisés, à la fois traçables et optimisés pour le big data.  
 Voici trois exemples emblématiques, illustrant les patterns clés :
 
 ---
@@ -475,9 +443,9 @@ _Méthode principale `run()` (orchestration extraction & stockage, ExchangeAsset
 > _Pour les logs complets voir [logs/extract.log](logs/extract.log)_
 ---
 
-### 6.3 Best Practices & Data Engineering Highlights - CryptoLakehouse Extraction 
+### 6.3 Best Practices & Data Engineering Highlights 
 
-La couche d’extraction de CryptoLakehouse a été pensée pour **incarner les meilleures pratiques d’ingénierie de la donnée** : robustesse, scalabilité, auditabilité, et optimisation métier. Chaque extracteur a été designé comme un **composant “production ready”**, avec un focus fort sur la **valeur business** et la **performance technique**.
+La couche d’extraction du pipeline a été pensée pour **incarner les meilleures pratiques d’ingénierie de la donnée** : robustesse, scalabilité, auditabilité, et optimisation métier. Chaque extracteur a été designé comme un **composant “production ready”**, avec un focus fort sur la **valeur business** et la **performance technique**.
 
  - **1. Scalabilité & Performance “Big Data Ready”**
 
@@ -526,7 +494,7 @@ La couche d’extraction de CryptoLakehouse a été pensée pour **incarner les 
 
 **En résumé :**
 
-> La couche extract du pipeline CryptoLakehouse n’est pas juste fonctionnelle : elle **incarne le meilleur de l’ingénierie data** moderne, avec une vraie dimension “business ready”, une gouvernance exemplaire, et une capacité d’évolution et de robustesse adaptées aux exigences d’un environnement crypto volatil et en forte croissance.
+> La couche extract du pipeline ELT n’est pas juste fonctionnelle : elle **incarne le meilleur de l’ingénierie data** moderne, avec une vraie dimension “business ready”, une gouvernance exemplaire, et une capacité d’évolution et de robustesse adaptées aux exigences d’un environnement crypto volatil et en forte croissance.
 
 ----
 
@@ -534,7 +502,7 @@ La couche d’extraction de CryptoLakehouse a été pensée pour **incarner les 
 
 ### 7.1 **Architecture Spark & POO - Vision d’ensemble**
 
-La phase de transformation constitue le **cœur analytique du pipeline CryptoLakehouse**. Elle a pour mission de convertir la donnée brute issue du Data Lake (couche “bronze”) en données enrichies, structurées et prêtes à l’analyse métier (couche “silver”), tout en assurant qualité, traçabilité et performance à grande échelle.
+La phase de transformation constitue le **cœur analytique du pipeline**. Elle a pour mission de convertir la donnée brute issue du Data Lake (couche “bronze”) en données nettoyées, enrichies, structurées et prêtes à l’analyse métier (couche “silver”), avant leur chargement final dans le **Data Warehouse relationnel** dédié à la BI. Tout en assurant qualité, traçabilité et performance à grande échelle.
 
 ---
 #### **Objectif de la phase de transformation**
@@ -610,7 +578,7 @@ La **phase de transformation** est entièrement orchestrée par **Apache Airflow
 - **Interopérabilité et portabilité** : le pipeline peut être déclenché aussi bien localement qu’en production, grâce à la containerisation Docker et aux configurations Airflow.
 
 ---
-#### **Diagramme UML – Architecture POO des Transformers**
+#### **Diagramme UML - Architecture POO des Transformers**
 
 Le schéma ci-dessous illustre l’architecture objet :  
 la classe mère `BaseTransformer` factorise toute la logique partagée (logs, Spark, métadonnées, méthodes utilitaires),  
@@ -624,7 +592,7 @@ tandis que chaque sous-classe métier (Crypto, Exchange, GlobalMetrics, etc.) im
  **En résumé**: 
  >la phase de transformation du projet s’appuie sur Spark pour garantir **performance et scalabilité**, une structuration orientée objets pour la **maintenabilité voir la scalabilité métier**, et une orchestration Airflow pour l’**automatisation, la robustesse et la gouvernance “production ready”**.  
 >
->Ce socle permet à CryptoLakehouse de délivrer une donnée fiable, BI/ML-ready, et évolutive à chaque évolution du marché crypto, tout en assurant **résilience, sobriété et auditabilité**.
+>Ce socle permet à délivrer une donnée fiable, BI/ML-ready, et évolutive à chaque évolution du marché crypto, tout en assurant **résilience, sobriété et auditabilité**.
 
 
 ---
@@ -827,7 +795,7 @@ la logique de build métier est séparée de la préparation/enrichissement,
 ## 8. Load Layer
 ### 8.1 **Architecture & vision d’ensemble - Load Layer**
 
-La phase de **Load** est l’étape finale qui fait passer les données “silver” (transformées, enrichies, prêtes à l’analyse) du Data Lake vers le **Data Warehouse** décisionnel (PostgreSQL).  
+La phase de **Load** est l’étape finale qui fait passer les données “silver” (transformées, enrichies, prêtes à l’analyse) du Data Lake vers le **Data Warehouse relationnel** (PostgreSQL) dédié au décisionnel.
 Elle vise à rendre la donnée **exploitée, historisée et accessible** pour la BI, le reporting, tout en garantissant robustesse, intégrité et performance.
 
 ---
@@ -886,7 +854,7 @@ vérification de readiness, contrôle d’intégrité, logs et gestion fine des 
 Ce modèle garantit une robustesse maximale, une extension rapide à tout nouveau domaine, et une maintenance facilitée du pipeline._
 
 
-### 8.2 **Architecture POO – Structuration du code**
+### 8.2 **Architecture POO - Structuration du code**
 
 L’architecture de la couche **Load** est entièrement orientée objet et s’appuie sur des principes d’ingénierie logicielle avancés (SOLID) pour garantir **modularité, clarté, maintenabilité et évolutivité**.
 
@@ -1140,9 +1108,9 @@ Le cœur de la robustesse du pipeline repose sur les  méthodes partagées parmi
 
 ---
 
-## 9. Data Warehouse, SQL & Migrations – Structure et Rôles
+## 9. Data Warehouse, SQL & Migrations - Structure et Rôles
 
-Le projet CryptoLakehouse est organisé pour garantir une séparation stricte entre :
+Le projet est organisé pour garantir une séparation stricte entre :
 
 - le code ELT (Python/Spark),
 - la logique Data Warehouse (SQL, gouvernance, BI),
@@ -1208,7 +1176,7 @@ Voici comment sont structurées les couches techniques côté DWH :
 
 ## 10. Orchestration & Automatisation avec Airflow
 
-### 10.1 **Architecture d’orchestration – Vision globale Airflow**
+### 10.1 **Architecture d’orchestration - Vision globale Airflow**
 
 La plateforme **Airflow** orchestre **l’ensemble du pipeline ELT**, depuis l’extraction automatisée des données jusqu’aux contrôles qualité post-chargement. Cette orchestration garantit :
 
@@ -1326,10 +1294,383 @@ Grâce à ce design, l’ajout d’un nouveau domaine, d’une nouvelle fréquen
 ---
 
 ## 11. Docker
+
+### Architecture envisagée
+
+![Architecture Docker](docs/docker/arch.png)
+
+L’architecture cible initiale prévoyait une stack entièrement dockerisée :  
+- Airflow, Spark/ELT, Metabase dans des conteneurs distincts,
+- Un Data Warehouse local, partagé via des volumes Docker pour les logs et métadonnées,
+- Communication entre tous les services par le réseau Docker.
+
+---
+
+### Pourquoi la base de données (DWH) n’est pas dockerisée ?
+
+La base de données centrale n’est **pas dockerisée volontairement** pour se rapprocher de l’architecture de production réelle, où :
+- Le DWH est un service Cloud externe stable (ex : Snowflake, Google BigQuery, Amazon Redshift…).
+- La base doit être persistante et indépendante des cycles de vie des conteneurs.
+
+**En local, le DWH reste donc sur la machine hôte**, garantissant stabilité et persistance,  
+et simulant ainsi le fonctionnement d’une solution cloud en conditions réelles.
+
+---
+
+### Limites rencontrées lors de la dockerisation
+
+Après de nombreux tests, plusieurs limitations majeures sont apparues :
+
+- **Complexité d’architecture**
+    - Communication difficile entre Airflow et Spark sur plusieurs conteneurs (partage de fichiers/scripts, gestion des ports, visibilité sur le DWH et les logs).
+    - Gestion complexe des volumes partagés et synchronisation des données.
+
+- **Instabilité d’Airflow dans Docker**
+    - Crashs du scheduler et du webserver.
+    - Bugs d’interface, pertes de connexion.
+
+- **Tentative d’Airflow + Spark dans un seul conteneur**
+    - Image très lourde (>5.3 GB, voir ci-dessous).
+    - Instabilité persistante d’Airflow (crashes, lenteurs).
+
+- **Problèmes de dépendances et performances**
+    - Difficultés de gestion Java, Python, Spark, Airflow dans la même image.
+    - Temps de build/démarrage très long.
+
+---
+
+### Capture : poids des images Docker
+
+![Docker images size](docs/docker/image_size.png)
+
+---
+
+### Choix final : une stack hybride et pragmatique
+
+**Pour garantir la stabilité, la simplicité et la portabilité :**
+
+- **Airflow et Spark/ELT sont à installer localement** (hors Docker), ce qui évite les surcharges et garantit de meilleures performances.
+- **Docker Compose est utilisé pour les services “simples”** (Metabase, éventuellement la BDD pour tests).
+- Les dossiers `/logs`, `/metadata`, `/data` sont partagés localement, pour la persistance des données et des logs.
+
+---
+
+### Conclusion
+
+> Cette démarche permet de **documenter le cheminement technique**,  
+> d’illustrer les choix et les limitations rencontrés,  
+> et de rester en phase avec les meilleures pratiques professionnelles.
+
+---
+
 ## 12. Highlights sur les résultats + optimisations
-## 13. Guide d'installation et de démarrage
+
+**Cette section met en valeur l’apport métier et la robustesse opérationnelle, depuis des dashboards analytiques avancés jusqu’aux outils de monitoring technique.**
+
+### **1. Valeur métier - Visualisations de données (Metabase)**
+
+Chaque visualisation ci-dessous est alimentée en temps réel par le Data Warehouse.  
+Les données sont historisées, actualisées, et peuvent être explorées/filtrées dynamiquement par tout analyste.
+
+---
+#### **A. KPIs globaux du marché crypto dans le temps**  
+
+**Question :** _Comment évoluent les principaux indicateurs du marché crypto (capitalisation totale, volume, liquidité) et quels événements majeurs ont influé sur ces tendances ?_  
+
+**Indicateurs représentés et axes associés :**
+
+- **Total Market Cap**
+
+    Capitalisation totale du marché crypto (axe de gauche, en USD)
+    Mesure la valeur globale de l’ensemble des cryptomonnaies à chaque instant.
+
+- **Total Volume 24h**
+
+    Volume total échangé sur 24h (axe de gauche, en USD)
+    Indique l’activité du marché, les périodes de forte ou faible liquidité.
+
+- **Total Volume 24h Reported**
+
+    Volume “reporté” sur 24h (axe de gauche, en USD)
+    Permet de comparer le volume effectif au volume communiqué, pour détecter des anomalies ou manipulations potentielles.
+
+- **Market Liquidity Ratio**
+
+    Ratio de liquidité du marché (axe de droite, sans unité ou en %)
+    Évalue la facilité d’échange sur le marché : un ratio élevé signale un marché liquide, un ratio faible signale une liquidité tendue.
 
 
+![Vue globale : Suivi temporel des indicateurs clés du marché crypto](docs/metabase/global_view.png)
+
+_Vue d’ensemble : évolution temporelle des principaux KPIs du marché global crypto.  
+(L’utilisateur peut cliquer sur la légende pour isoler un indicateur spécifique selon son besoin d’analyse.)_
+
+---
+#### **B. Tendance de dominance BTC & ETH**
+
+**Question :** _Comment la part de marché cumulée de Bitcoin et Ethereum a-t-elle évolué ? Quels points de bascule observe-t-on ?_
+
+**Indicateurs représentés et axes associés :**
+
+- **BTC Dominance / ETH Dominance**  
+  Pourcentage de la capitalisation totale du marché crypto détenu respectivement par Bitcoin et Ethereum.  
+  _Axe de gauche (%)._  
+  Permet de suivre le poids de chaque leader sur l’ensemble du marché.
+
+- **BTC Dominance Delta / ETH Dominance Delta**  
+  Différence entre la dominance actuelle et celle de la veille pour Bitcoin et Ethereum (variation sur 24h).  
+  _Axe de droite (delta en points de %)._  
+  Met en évidence les mouvements rapides ou ruptures de tendance d’un jour à l’autre, utiles pour détecter les basculements ou chocs de marché.
+
+![Évolution de la dominance de Bitcoin et Ethereum dans la capitalisation crypto mondiale](docs/metabase/btc_eth_evolution.png)
+
+_Légende :_ Cette visualisation croise dominance “stable” (niveau) et dominance “dynamique” (variation) pour analyser à la fois la stabilité des parts de marché et les phases de bascule rapide dans le leadership crypto.
 
 
+---
+#### **C. Top catégories par market cap / Indice de dominance par catégorie**
 
+**Question :** _Comment la dominance et la liquidité de l’écosystème Ethereum (ou toute autre catégorie) évoluent-elles dans le temps ?_
+
+**Indicateurs représentés et axes associés :**
+
+- **Dominance per Token**  
+  Montant total de la capitalisation (USD) attribué à cette catégorie à chaque instant  
+  _Axe de gauche (USD)._  
+  Permet de suivre la “puissance de marché” de la catégorie choisie (ici : Ethereum Ecosystem).
+
+- **Volume to Market Cap Ratio**  
+  Rapport entre le volume d’échange sur 24h et la capitalisation totale de la catégorie  
+  _Axe de droite (ratio sans unité, généralement entre 0 et 1)._  
+  Indique la liquidité de la catégorie : un ratio élevé signale une activité intense, un ratio faible une faible rotation.
+
+![Évolution de la dominance et du ratio volume/capitalisation - Ethereum Ecosystem](docs/metabase/evolution_of_dominance.png)
+
+_Légende :_ Exemple sur Ethereum, mais visualisation dynamique disponible sur plus de 280 catégories.
+
+
+---
+#### **D. Market Cap vs Fully Diluted Cap**
+
+**Question :** _Comment évoluent la market cap réelle, la fully diluted cap et la dominance dans le temps ?_
+
+**Indicateurs représentés et axes associés :**
+
+- **Market Cap USD**  
+  Capitalisation boursière réelle (valeur totale de tous les tokens actuellement en circulation).  
+  _Axe de gauche (USD)._  
+  Permet de suivre la valorisation effective du marché à un instant t.
+
+- **Fully Diluted Market Cap USD**  
+  Capitalisation potentielle si tous les tokens prévus étaient déjà émis.  
+  _Axe de gauche (USD)._  
+  Met en perspective la valorisation “maximale” possible du projet/du marché.
+
+- **Market Cap Dominance USD**  
+  Pourcentage que représente la capitalisation étudiée (projet, secteur…) par rapport à l’ensemble du marché crypto.  
+  _Axe de droite (%)._  
+  Permet de mesurer l’importance relative de ce segment dans l’écosystème global.
+
+![Évolution de la capitalisation de marché et dominance crypto (USD, fully diluted, dominance %)](docs/metabase/market_cap_dominance.png)
+
+_Légende :_ Comparaison entre valorisation actuelle et potentielle maximale.
+
+_Note :_ “Market Cap” = valeur des tokens en circulation ; “Fully Diluted” = si tous les tokens étaient émis.
+
+---
+#### **E. Évolution du secteur DeFi**
+
+**Question :** _Quelle est la dynamique (taille, activité, part de marché) du secteur DeFi au fil du temps ?_
+
+**Indicateurs représentés et axes associés :**
+
+- **DeFi Market Cap**  
+  Capitalisation totale du secteur DeFi, en USD.  
+  _Axe de gauche._  
+  Permet de suivre la taille et l’évolution globale de la finance décentralisée.
+
+- **DeFi Volume 24h**  
+  Volume total échangé sur 24h pour le secteur DeFi, en USD.  
+  _Axe de gauche._  
+  Indique l’intensité de l’activité et la liquidité quotidienne du secteur.
+
+- **DeFi Volume Share**  
+  Part du volume DeFi par rapport au volume global crypto (en %).  
+  _Axe de droite._  
+  Mesure l’importance relative du secteur DeFi parmi l’ensemble des échanges crypto.
+
+![DeFi sector evolution](docs/metabase/DeFi.png)
+
+_Légende :_ Évolution conjointe de la market cap, du volume quotidien et de la part de marché DeFi dans le temps.
+
+---
+#### **F. Tendance quotidienne de l’indice Fear & Greed**
+
+**Question :** _Quelles périodes récentes de sentiment extrême (peur/avidité) a-t-on observé sur le marché crypto ? Comment ces cycles se superposent-ils aux grands mouvements de prix ?_
+
+**Indicateur représenté :**
+
+- **Crypto Fear & Greed Index**  
+  Indice agrégé (de 0 à 100) synthétisant le sentiment global du marché crypto, basé sur plusieurs signaux : volatilité, volumes, tendances, réseaux sociaux, etc.
+  - **Extrême Fear (0-24)** : pessimisme marqué, panique.
+  - **Fear (25-49)** : sentiment négatif.
+  - **Neutral (50)** : équilibre.
+  - **Greed (51-74)** : optimisme, appétit pour le risque.
+  - **Extreme Greed (75-100)** : euphorie, potentielle surchauffe.
+
+![Évolution quotidienne de l’indice Fear & Greed du marché crypto](docs/metabase/fear_greed_index.png)
+
+_Légende :_ Fluctuations journalières de l’indice “Fear & Greed”, utile pour anticiper risques et opportunités.
+
+---
+
+### **2. Observabilité technique - Monitoring & Orchestration**
+
+Les screenshots ci-dessous illustrent **l’orchestration, le monitoring et la robustesse** de la plateforme, à travers :
+
+- **Airflow (Monitoring & Orchestration)**
+  - Suivi en temps réel de l’état des DAGs : nombre de runs, succès, échecs, tâches actives…
+  - Historique détaillé des exécutions sur la semaine, permettant d’auditer la stabilité et la disponibilité du pipeline.
+  - Visualisation claire de chaque phase du workflow ETL, de l’extraction à la post-load, pour un debug et une maintenance facilités.
+
+    - `Airflow : Suivi des exécutions sur la première semaine en production`  
+    ![week1](docs/airflow/airflow_dashbord_week1.png)   
+        _Tous les DAGs exécutés ont abouti à **100 %** de succès (aucun échec, **0 % failed**). L’interface présente le détail des runs et tâches, attestant de la **fiabilité** et de la **stabilité** du pipeline dès la mise en production._
+    - `Airflow : Monitoring des exécutions sur la deuxième semaine en production`      
+    ![week2](docs/airflow/airflow_dashbord_week2.png)  
+        _La stabilité du pipeline se confirme : **100 %** des DAGs et tâches exécutées ont abouti sans aucun échec (**0 % failed**). Ce suivi hebdomadaire garantit la disponibilité et la **robustesse** des traitements en environnement de production._
+    - `Airflow : Monitoring des exécutions sur la troisième semaine en production`  
+    ![week3](docs/airflow/airflow_dashbord_week3.png)   
+        _Le pipeline maintient sa stabilité sur la durée : **100 %** des DAGs et des tâches exécutés se sont soldés par un succès, sans aucun échec (**0 % failed**). Ce troisième suivi hebdomadaire confirme la **fiabilité continue** et l’excellence opérationnelle du workflow en production_   
+    - `Airflow : Monitoring des exécutions sur la quatrième semaine en production`                                                         
+    ![week4](docs/airflow/airflow_dashbord_week4.png)                                                                               
+        _La stabilité du pipeline se confirme une nouvelle fois sur la semaine écoulée : **100 %** des DAGs et des tâches exécutés sont terminés avec succès (**0 % failed**, aucun incident enregistré). Ce quatrième suivi hebdomadaire atteste de la **robustesse** et de la **maturité opérationnelle** de l’orchestration Airflow en production._                      
+    - `Airflow : Vue d’ensemble des DAGs actifs et planifiés`         
+    ![dags](docs/airflow/dags_dashboard.png)         
+        _Cette interface présente la liste complète des DAGs actifs dans Airflow, avec pour chacun le statut des derniers runs, le prochain run planifié, et l’historique graphique des exécutions (barres vertes = succès).
+        Elle offre une visibilité synthétique et immédiate sur la santé de l’orchestration globale, le respect des plannings et **l’absence d’échecs sur toutes les tâches critiques** (daily, 5x, 10x, backup, weekly, etc.)_
+    - `Airflow : Détail de l’exécution du DAG quotidien (daily_dag) au 09/07/2025`     
+    ![daily_dag](docs/airflow/daily_dag.png)  
+        _Toutes les étapes du pipeline sont **passées avec succès** (success). La vue détaillée assure traçabilité et vérification rapide de chaque phase du workflow._
+    - `Airflow : Exécution détaillée du DAG 10x_dag (09/07/2025)`   
+    ![10x_dag](docs/airflow/10x_dag.png)    
+        _Statut détaillé de l’exécution du DAG 10x_dag au 09/07/2025 : chaque étape du workflow (extract, transform, load) s’est déroulée avec succès, assurant la fiabilité du pipeline._
+
+
+- **Spark UI (Supervision de la scalabilité)**
+  - Visualisation en temps réel de l’ensemble des jobs Spark et des tâches associées (success, failed, running).
+  - Permet d’identifier immédiatement les tâches ayant réussi, échoué ou pris plus de temps que prévu, et de comparer les temps d’exécution à nos anticipations (monitoring de la performance réelle vs attendue).
+  - Analyse détaillée des durées pour chaque étape du pipeline (transform, load, etc.) afin d’optimiser les goulets d’étranglement.
+  - Traçabilité complète des traitements pour chaque lot de données, avec logs et historiques accessibles.
+
+    - `Spark UI - History Server : Historique détaillé des jobs`   
+        ![history](docs/spark/spark_history.png)    
+        _Cette interface présente l’historique complet des jobs Spark exécutés par le pipeline, incluant leur nom, date et heure de début/fin, durée, et utilisateur associé.
+        Elle permet de retracer l’ensemble des traitements effectués sur la période, d’accéder aux logs d’exécution pour chaque job, et d’auditer la stabilité ou la performance du pipeline dans le temps._
+    - `Spark UI - Jobs : Suivi temps réel de l’exécution du pipeline`        
+        ![spark_jobs](docs/spark/spark_jobs.png)                   
+        _Tableau de bord Spark UI affichant en temps réel tous les jobs Spark du pipeline. On visualise instantanément le statut (succès, en cours, échoué) et la durée de chaque job, permettant une supervision immédiate et le diagnostic rapide d’éventuels ralentissements._
+
+---
+### **3. Impact métier & technique - Synthèse**
+
+- **Stabilité & fiabilité prouvées :**  
+  Sur plus d’un mois d’exécution en production, **aucun échec n’a été constaté** sur l’ensemble des DAGs et tâches (0% failed).  
+  Les captures d’écran Airflow et Spark UI ci-dessous montrent un taux de succès de 100 %, démontrant la robustesse du pipeline, la qualité de l’orchestration, et la fiabilité des scripts d’extraction, transformation et chargement.
+
+- **Automatisation de bout en bout :**  
+  Toutes les phases du pipeline sont entièrement automatisées, de la collecte à l’exposition des données. Les données sont historisées, actualisées et accessibles sans intervention manuelle.
+
+- **Analytics en self-service & flexibilité Metabase :**  
+  Les analystes disposent d’une plateforme Metabase connectée directement au Data Warehouse :  
+  - Création et personnalisation de dashboards dynamiques (filtres, drilldown, sélection de plages temporelles…)
+  - Possibilité d’effectuer des **requêtes SQL avancées** directement via l’interface, sans dépendance à l’IT
+  - Export des résultats sous plusieurs formats (CSV, JSON, graphiques interactifs…)
+  - Partage facile de visualisations ou rapports avec les parties prenantes
+  - Interactivité temps réel avec les données actualisées (analyses ad hoc ou monitoring continu)
+
+- **Scalabilité & robustesse technique :**  
+  L’architecture basée sur Spark, Airflow et Delta Lake assure rapidité de traitement, monitoring facilité, gestion efficace des ressources, et résilience opérationnelle.
+
+- **Gouvernance & qualité des données :**  
+  La traçabilité, l’auditabilité et les contrôles qualité sont assurés à chaque étape, garantissant la fiabilité des KPIs et la conformité aux exigences d’une plateforme de production.
+
+---
+
+**En conclusion** :
+> _La plateforme CryptoAnalytics apporte ainsi une vraie valeur métier, prête à être utilisée en production, avec une gouvernance solide, une observabilité avancée et une capacité d’extension rapide._  
+>
+> _Les tableaux de bord Airflow, Spark UI et Metabase, présentés ci-dessous, attestent du bon fonctionnement, du suivi opérationnel et de la facilité d’exploration des données._
+
+---
+
+## 13. Compétences développées
+
+Ce projet m’a permis de renforcer un ensemble de compétences clés, tant sur le plan technique que méthodologique et organisationnel.
+
+### Compétences techniques
+
+- **Ingénierie des données :**
+  - Modélisation de Data Warehouse (étoile / flocon)
+  - Historisation, versioning, gouvernance des données
+  - Structuration d’un projet ELT analytique complet
+
+- **Big Data & traitement distribué :**
+  - Conception et développement de pipelines Spark (PySpark) en batch.
+  - Architecture pensée pour être cloud-compatible (spark-submit, fréquence dynamique, modularité), prête à être déployée sur un cluster Spark.
+  - Monitoring via Spark UI.
+
+- **Orchestration & automatisation :**
+  - Orchestration complète du pipeline via Apache Airflow
+  - Structuration dynamique des DAGs par fréquence métier (daily, weekly, etc.)
+  - Intégration de tâches Spark, SQL , Shell et Python au sein d’une chaîne automatisée robuste
+
+- **Base de données & SQL avancé :**
+  - PostgreSQL : optimisation, vues analytiques, procédures stockées
+  - Tests qualité, gouvernance, monitoring par scripts SQL
+
+- **Infrastructure & déploiement :**
+  - Docker & Docker Compose.
+  - Utilisation de Metabase pour la visualisation métier.
+  - Gestion des migrations SQL avec Alembic & SQLAlchemy.
+  - Scripts Shell pour l’automatisation de l’initialisation de la base PostgreSQL (création des rôles, schémas, permissions)
+
+### Compétences méthodologiques
+
+- Structuration d’un projet Data de A à Z
+- Documentation technique professionnelle (README, architecture, logs)
+- Gestion de versions (Git) et reproductibilité
+
+### Compétences transverses
+
+- Rigueur dans la gouvernance et la qualité de données
+- Capacité à investiguer et corriger des bugs complexes (Airflow, Spark, Docker)
+- Communication des résultats par dashboards clairs et pédagogiques
+- Autonomie, gestion du temps et logique DevOps (automatisation, résilience, logs)
+
+---
+
+**En résumé**  
+Ce projet m’a permis de construire une vision complète du cycle de vie de la donnée dans un environnement de production, de l’ingestion brute à l’analyse métier, en passant par les problématiques d’architecture, de gouvernance et de scalabilité.
+
+---
+
+## 14. Améliorations possibles & Perspectives
+
+- **Déploiement cloud & montée en charge automatique**  
+  Migrer l’infrastructure sur un cloud public (AWS, GCP...) pour bénéficier du scaling automatique et de la haute disponibilité.
+
+- **Monitoring avancé & alerting**  
+  Intégrer des solutions comme Grafana pour le monitoring temps réel, la gestion d’alertes et la détection proactive des incidents.
+
+- **Qualité de données & observabilité étendue**  
+  Mettre en place des tests de qualité de données automatisés (SodaSQL) pour renforcer la confiance métier et la gouvernance.
+
+- **Orchestration multi-pipelines**  
+  Étendre Airflow pour orchestrer des pipelines multiples ou enchaînés, en intégrant d’autres sources (on-chain, réseaux sociaux, etc.).
+
+- **Machine Learning avancé**  
+  Exploiter les données du Data Lake (optimisé et compatible ML) pour déployer des modèles prédictifs ou de scoring, avec automatisation du réentraînement.
+
+- **Intégration CI/CD pour les migrations de schéma**  
+  Ajouter un DAG Airflow dédié pour appliquer automatiquement les migrations Alembic sur le Data Warehouse, assurant une CI/CD data robuste et traçable.
